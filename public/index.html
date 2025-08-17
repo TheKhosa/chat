@@ -330,14 +330,24 @@
             currentChannel = urlParams.get('channel') || urlParams.get('stream') || 'general';
             const providedUsername = urlParams.get('username') || urlParams.get('user');
             
+            console.log('Initializing with:', { currentChannel, providedUsername });
+            
             channelName.textContent = `#${currentChannel}`;
             
             if (providedUsername && providedUsername.length >= 2) {
                 currentUser = providedUsername;
-                joinChannel();
+                console.log('Using provided username:', currentUser);
+                usernameSetup.classList.remove('show');
+                chatContainer.style.display = 'flex';
+                
+                // Join immediately if socket is already connected
+                if (socket.connected) {
+                    joinChannel();
+                }
             } else {
                 // Generate random username but allow user to change it
                 const randomUsername = generateRandomUsername();
+                console.log('Generated random username:', randomUsername);
                 usernameInput.value = randomUsername;
                 usernameSetup.classList.add('show');
                 chatContainer.style.display = 'none';
@@ -390,21 +400,7 @@
         messageForm.addEventListener('submit', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
-            const message = messageInput.value.trim();
-            
-            if (!message) {
-                return false;
-            }
-
-            if (!currentUser) {
-                showError('Please set a username first');
-                return false;
-            }
-            
-            socket.emit('send-message', { message });
-            messageInput.value = '';
-            stopTyping();
+            sendMessage();
             return false;
         });
 
@@ -412,23 +408,45 @@
         document.querySelector('.send-btn').addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
+            sendMessage();
+            return false;
+        });
+
+        // Handle Enter key in message input
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        function sendMessage() {
             const message = messageInput.value.trim();
             
+            console.log('Attempting to send message:', { message, currentUser, currentChannel });
+            
             if (!message) {
-                return false;
+                console.log('Message is empty, not sending');
+                return;
             }
 
             if (!currentUser) {
                 showError('Please set a username first');
-                return false;
+                console.log('No username set');
+                return;
+            }
+
+            if (!socket.connected) {
+                showError('Not connected to chat server');
+                console.log('Socket not connected');
+                return;
             }
             
+            console.log('Emitting send-message event');
             socket.emit('send-message', { message });
             messageInput.value = '';
             stopTyping();
-            return false;
-        });
+        }
 
         // Typing indicator
         messageInput.addEventListener('input', () => {
@@ -547,7 +565,13 @@
         }
 
         // Initialize the chat when page loads
-        document.addEventListener('DOMContentLoaded', initializeFromURL);
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('Chat widget loaded, initializing...');
+            initializeFromURL();
+            
+            // Add a welcome message to show the chat is working
+            addSystemMessage('Chat widget loaded. Connecting to server...');
+        });
     </script>
 </body>
 </html>
