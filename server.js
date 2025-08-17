@@ -30,6 +30,23 @@ const MAX_MESSAGE_LENGTH = 500;
 const MAX_USERNAME_LENGTH = 20;
 const MIN_USERNAME_LENGTH = 2;
 
+// Custom emotes and GIFs (same as client for validation)
+const customEmotes = {
+  'Kappa': 'https://static-cdn.jtvnw.net/emoticons/v2/25/default/dark/1.0',
+  'PogChamp': 'https://static-cdn.jtvnw.net/emoticons/v2/88/default/dark/1.0',
+  'KEKW': 'https://cdn.7tv.app/emote/60a57218eca3e55c5e6e9cd3/1x.webp',
+  'LUL': 'https://static-cdn.jtvnw.net/emoticons/v2/425618/default/dark/1.0',
+  'MonkaS': 'https://cdn.7tv.app/emote/60a57218eca3e55c5e6e9cd0/1x.webp',
+  'EZ': 'https://cdn.7tv.app/emote/60a5722dec18e05c5e6e9cdf/1x.webp',
+};
+
+const gifEmotes = {
+  'PepeParty': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4862/1x.gif',
+  'CatJAM': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4851/1x.gif',
+  'EzDance': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f485f/1x.gif',
+  'PartyParrot': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4865/1x.gif',
+};
+
 // User color classes for consistent coloring
 const userColors = [
   'user-red', 'user-orange', 'user-yellow', 'user-green',
@@ -51,7 +68,34 @@ function validateMessage(message) {
   if (!message || typeof message !== 'string') return null;
   const trimmed = message.trim();
   if (trimmed.length === 0 || trimmed.length > MAX_MESSAGE_LENGTH) return null;
+  
+  // Basic profanity filter (you can expand this)
+  const profanityWords = ['spam', 'scam']; // Add more as needed
+  const lowerMessage = trimmed.toLowerCase();
+  for (const word of profanityWords) {
+    if (lowerMessage.includes(word)) {
+      return null; // or return censored version
+    }
+  }
+  
   return trimmed;
+}
+
+function validateEmotes(message) {
+  // Count custom emotes to prevent spam
+  const allEmotes = { ...customEmotes, ...gifEmotes };
+  let emoteCount = 0;
+  
+  Object.keys(allEmotes).forEach(emoteName => {
+    const regex = new RegExp(`:${emoteName}:`, 'g');
+    const matches = message.match(regex);
+    if (matches) {
+      emoteCount += matches.length;
+    }
+  });
+  
+  // Limit to 10 emotes per message
+  return emoteCount <= 10;
 }
 
 function validateUsername(username) {
@@ -186,6 +230,11 @@ io.on('connection', (socket) => {
     
     if (!user || !validMessage) {
       return socket.emit('error', { message: 'Invalid message or user not in channel.' });
+    }
+    
+    // Validate emote usage
+    if (!validateEmotes(validMessage)) {
+      return socket.emit('error', { message: 'Too many emotes in message. Limit: 10 per message.' });
     }
 
     // Validate replyTo data if provided
@@ -378,6 +427,18 @@ setInterval(() => {
     }
   }
 }, 5000); // Check every 5 seconds
+
+// API endpoint for available emotes
+app.get('/api/emotes', (req, res) => {
+  res.json({
+    custom: customEmotes,
+    gifs: gifEmotes,
+    categories: [
+      { id: 'custom', name: 'Custom Emotes', count: Object.keys(customEmotes).length },
+      { id: 'gifs', name: 'Animated', count: Object.keys(gifEmotes).length }
+    ]
+  });
+});
 
 // API endpoint for health check
 app.get('/health', (req, res) => {
