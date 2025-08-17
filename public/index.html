@@ -367,7 +367,12 @@
 
         // Join the channel
         function joinChannel() {
-            if (!currentUser || !currentChannel) return;
+            if (!currentUser || !currentChannel) {
+                console.error('Missing user or channel:', { currentUser, currentChannel });
+                return;
+            }
+            
+            console.log('Joining channel:', { username: currentUser, channel: currentChannel });
             
             socket.emit('join-channel', { 
                 username: currentUser, 
@@ -384,13 +389,45 @@
         // Send message
         messageForm.addEventListener('submit', (e) => {
             e.preventDefault();
+            e.stopPropagation();
+            
             const message = messageInput.value.trim();
             
-            if (message) {
-                socket.emit('send-message', { message });
-                messageInput.value = '';
-                stopTyping();
+            if (!message) {
+                return false;
             }
+
+            if (!currentUser) {
+                showError('Please set a username first');
+                return false;
+            }
+            
+            socket.emit('send-message', { message });
+            messageInput.value = '';
+            stopTyping();
+            return false;
+        });
+
+        // Also handle send button click directly
+        document.querySelector('.send-btn').addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const message = messageInput.value.trim();
+            
+            if (!message) {
+                return false;
+            }
+
+            if (!currentUser) {
+                showError('Please set a username first');
+                return false;
+            }
+            
+            socket.emit('send-message', { message });
+            messageInput.value = '';
+            stopTyping();
+            return false;
         });
 
         // Typing indicator
@@ -411,7 +448,23 @@
             }
         }
 
-        // Socket event handlers
+        // Socket.IO connection and debugging
+        socket.on('connect', () => {
+            console.log('Connected to server:', socket.id);
+            // If we already have user and channel, try to join
+            if (currentUser && currentChannel) {
+                joinChannel();
+            }
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+        });
+
+        socket.on('connect_error', (error) => {
+            console.error('Connection error:', error);
+            showError('Connection failed. Please refresh the page.');
+        });
         socket.on('joined-channel', (data) => {
             addSystemMessage(`Welcome to #${data.channel}!`);
             messageInput.focus();
