@@ -23,20 +23,54 @@
         .messages::-webkit-scrollbar { width: 6px; }
         .messages::-webkit-scrollbar-track { background: #1a1a1a; }
         .messages::-webkit-scrollbar-thumb { background: #2c2c2c; border-radius: 3px; }
-        .message { margin-bottom: 8px; padding: 6px 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.03); font-size: 13px; line-height: 1.4; word-wrap: break-word; }
-        .message.system { background: rgba(192, 43, 43, 0.1); color: #ff6b6b; font-style: italic; text-align: center; font-size: 12px; }
-        .message-header { font-weight: 600; color: #c02b2b; margin-bottom: 2px; font-size: 12px; }
-        .message-time { font-size: 10px; color: #666; margin-left: 6px; }
+        .message { margin-bottom: 8px; padding: 6px 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.03); font-size: 13px; line-height: 1.4; word-wrap: break-word; cursor: pointer; transition: background 0.2s; position: relative; }
+        .message:hover { background: rgba(255, 255, 255, 0.06); }
+        .message.system { background: rgba(192, 43, 43, 0.1); color: #ff6b6b; font-style: italic; text-align: center; font-size: 12px; cursor: default; }
+        .message.system:hover { background: rgba(192, 43, 43, 0.1); }
+        .message.reply { background: rgba(192, 43, 43, 0.08); border-left: 3px solid #c02b2b; }
+        .message-header { font-weight: 600; margin-bottom: 2px; font-size: 12px; display: flex; align-items: center; gap: 6px; }
+        .message-username { cursor: pointer; }
+        .message-username:hover { text-decoration: underline; }
+        .message-time { font-size: 10px; color: #666; margin-left: auto; }
+        .reply-indicator { background: rgba(192, 43, 43, 0.2); color: #ff8a8a; font-size: 10px; padding: 2px 6px; border-radius: 3px; margin-bottom: 4px; border-left: 2px solid #c02b2b; }
         .message-content { color: #e5e5e5; line-height: 1.4; }
         .typing-indicator { padding: 6px 16px; font-style: italic; color: #8a8a8a; font-size: 11px; min-height: 24px; background: #0f0f0f; border-top: 1px solid #2c2c2c; }
-        .message-form { display: flex; padding: 8px; background: #0f0f0f; border-top: 1px solid #2c2c2c; gap: 8px; }
+        .message-form { display: flex; padding: 8px; background: #0f0f0f; border-top: 1px solid #2c2c2c; gap: 8px; flex-direction: column; }
+        .reply-preview { background: rgba(192, 43, 43, 0.1); border-left: 3px solid #c02b2b; padding: 6px 8px; font-size: 11px; color: #ccc; margin-bottom: 8px; border-radius: 3px; display: none; position: relative; }
+        .reply-preview .cancel-reply { position: absolute; top: 4px; right: 6px; background: none; border: none; color: #999; cursor: pointer; font-size: 14px; padding: 0; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; }
+        .reply-preview .cancel-reply:hover { color: #fff; }
+        .message-input-row { display: flex; gap: 8px; }
         .message-input { flex: 1; padding: 8px; border: 1px solid #2c2c2c; border-radius: 4px; font-size: 13px; background: #1a1a1a; color: #e5e5e5; }
         .message-input:focus { outline: none; border-color: #c02b2b; }
+        .emote-btn { background: #2c2c2c; color: #e5e5e5; padding: 8px 10px; border: none; border-radius: 4px; cursor: pointer; transition: background 0.2s; font-size: 12px; }
+        .emote-btn:hover { background: #3c3c3c; }
         .send-btn { background: #c02b2b; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; transition: background 0.2s; font-size: 12px; }
         .send-btn:hover { background: #e04141; }
+        .emote-picker { position: absolute; bottom: 100%; left: 0; right: 0; background: #0f0f0f; border: 1px solid #2c2c2c; border-radius: 6px; padding: 8px; display: none; max-height: 200px; overflow-y: auto; z-index: 1000; }
+        .emote-picker.show { display: block; }
+        .emote-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 4px; }
+        .emote-item { background: none; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 18px; transition: background 0.2s; display: flex; align-items: center; justify-content: center; }
+        .emote-item:hover { background: rgba(255, 255, 255, 0.1); }
         .error { color: #ff6b6b; background: rgba(255, 107, 107, 0.1); padding: 8px; border-radius: 4px; margin: 8px; text-align: center; font-size: 12px; }
         body::-webkit-scrollbar { display: none; }
         body { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* User Color Classes */
+        .user-red { color: #ff6b6b !important; }
+        .user-orange { color: #ffa726 !important; }
+        .user-yellow { color: #ffeb3b !important; }
+        .user-green { color: #66bb6a !important; }
+        .user-blue { color: #42a5f5 !important; }
+        .user-purple { color: #ab47bc !important; }
+        .user-pink { color: #ec407a !important; }
+        .user-cyan { color: #26c6da !important; }
+        .user-lime { color: #9ccc65 !important; }
+        .user-indigo { color: #5c6bc0 !important; }
+        .user-teal { color: #26a69a !important; }
+        .user-amber { color: #ffca28 !important; }
+        
+        /* Emote styling */
+        .emote { font-size: 16px; vertical-align: middle; margin: 0 1px; }
     </style>
 </head>
 <body>
@@ -54,8 +88,18 @@
             <div id="messages" class="messages"></div>
             <div id="typingIndicator" class="typing-indicator"></div>
             <form id="messageForm" class="message-form">
-                <input type="text" id="messageInput" class="message-input" placeholder="Type your message..." maxlength="500" required>
-                <button type="submit" class="send-btn">Send</button>
+                <div id="replyPreview" class="reply-preview">
+                    <button type="button" class="cancel-reply" id="cancelReply">×</button>
+                    <div id="replyContent"></div>
+                </div>
+                <div class="message-input-row">
+                    <input type="text" id="messageInput" class="message-input" placeholder="Type your message..." maxlength="500" required>
+                    <button type="button" id="emoteBtn" class="emote-btn">😀</button>
+                    <button type="submit" class="send-btn">Send</button>
+                </div>
+                <div id="emotePicker" class="emote-picker">
+                    <div class="emote-grid" id="emoteGrid"></div>
+                </div>
             </form>
         </div>
     </div>
@@ -64,6 +108,10 @@
         let currentUser = null;
         let currentChannel = null;
         let typingTimer = null;
+        let currentReply = null;
+        let userColors = {};
+        
+        // DOM elements
         const channelName = document.getElementById('channelName');
         const userCount = document.getElementById('userCount');
         const usernameSetup = document.getElementById('usernameSetup');
@@ -75,6 +123,40 @@
         const messageInput = document.getElementById('messageInput');
         const typingIndicator = document.getElementById('typingIndicator');
         const errorContainer = document.getElementById('errorContainer');
+        const emoteBtn = document.getElementById('emoteBtn');
+        const emotePicker = document.getElementById('emotePicker');
+        const emoteGrid = document.getElementById('emoteGrid');
+        const replyPreview = document.getElementById('replyPreview');
+        const replyContent = document.getElementById('replyContent');
+        const cancelReply = document.getElementById('cancelReply');
+        
+        // Available emotes
+        const emotes = [
+            '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃',
+            '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '☺️', '😚',
+            '😙', '🥲', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭',
+            '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄',
+            '😬', '🤥', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢',
+            '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '🥸',
+            '😎', '🤓', '🧐', '😕', '😟', '🙁', '☹️', '😮', '😯', '😲',
+            '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱',
+            '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠',
+            '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👹', '👺', '👻',
+            '👽', '👾', '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽',
+            '🙀', '😿', '😾', '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤',
+            '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘',
+            '💝', '💟', '👍', '👎', '👌', '🤏', '✌️', '🤞', '🤟', '🤘',
+            '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👋', '🤚', '🖐️',
+            '✋', '🖖', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💪'
+        ];
+        
+        // User color classes
+        const colorClasses = [
+            'user-red', 'user-orange', 'user-yellow', 'user-green',
+            'user-blue', 'user-purple', 'user-pink', 'user-cyan',
+            'user-lime', 'user-indigo', 'user-teal', 'user-amber'
+        ];
+        
         function generateRandomUsername() {
             const adjectives = ['Happy', 'Cool', 'Swift', 'Bright', 'Silent', 'Bold'];
             const nouns = ['Viewer', 'User', 'Guest', 'Watcher', 'Fan', 'Friend'];
@@ -83,12 +165,22 @@
             const number = Math.floor(Math.random() * 999) + 1;
             return `${adj}${noun}${number}`;
         }
+        
+        function getUserColor(username) {
+            if (!userColors[username]) {
+                // Generate consistent color based on username hash
+                let hash = 0;
+                for (let i = 0; i < username.length; i++) {
+                    hash = username.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                userColors[username] = colorClasses[Math.abs(hash) % colorClasses.length];
+            }
+            return userColors[username];
+        }
+        
         function initializeFromURL() {
             const urlParams = new URLSearchParams(window.location.search);
             currentChannel = urlParams.get('channel') || urlParams.get('stream') || 'general';
-            
-            // --- MODIFIED LINE ---
-            // Now accepts 'username', 'user', or 'nick' as the parameter for the username.
             const providedUsername = urlParams.get('username') || urlParams.get('user') || urlParams.get('nick');
             
             channelName.textContent = `#${currentChannel}`;
@@ -105,7 +197,42 @@
                 chatContainer.style.display = 'none';
                 usernameInput.focus();
             }
+            
+            // Initialize emote picker
+            initializeEmotePicker();
         }
+        
+        function initializeEmotePicker() {
+            emoteGrid.innerHTML = '';
+            emotes.forEach(emote => {
+                const emoteElement = document.createElement('button');
+                emoteElement.className = 'emote-item';
+                emoteElement.textContent = emote;
+                emoteElement.addEventListener('click', () => {
+                    insertEmote(emote);
+                    hideEmotePicker();
+                });
+                emoteGrid.appendChild(emoteElement);
+            });
+        }
+        
+        function insertEmote(emote) {
+            const cursorPos = messageInput.selectionStart;
+            const textBefore = messageInput.value.substring(0, cursorPos);
+            const textAfter = messageInput.value.substring(cursorPos);
+            messageInput.value = textBefore + emote + textAfter;
+            messageInput.focus();
+            messageInput.setSelectionRange(cursorPos + emote.length, cursorPos + emote.length);
+        }
+        
+        function showEmotePicker() {
+            emotePicker.classList.add('show');
+        }
+        
+        function hideEmotePicker() {
+            emotePicker.classList.remove('show');
+        }
+        
         function setUsername() {
             const username = usernameInput.value.trim();
             if (!username || username.length < 2) { showError('Username must be at least 2 characters'); return; }
@@ -115,21 +242,66 @@
             chatContainer.style.display = 'flex';
             joinChannel();
         }
+        
         function joinChannel() {
             if (!currentUser || !currentChannel || !socket.connected) return;
             socket.emit('join-channel', { username: currentUser, channel: currentChannel });
         }
+        
+        function setReply(username, messageContent) {
+            currentReply = { username, messageContent };
+            replyContent.innerHTML = `Replying to <strong class="${getUserColor(username)}">${escapeHtml(username)}</strong>: ${escapeHtml(messageContent.substring(0, 50))}${messageContent.length > 50 ? '...' : ''}`;
+            replyPreview.style.display = 'block';
+            messageInput.focus();
+        }
+        
+        function cancelReplyFunc() {
+            currentReply = null;
+            replyPreview.style.display = 'none';
+        }
+        
         function sendMessage() {
             const message = messageInput.value.trim();
             if (!message || !currentUser) return;
             if (!socket.connected) { showError('Not connected to chat server'); return; }
-            socket.emit('send-message', { message });
+            
+            const messageData = { message };
+            if (currentReply) {
+                messageData.replyTo = currentReply;
+            }
+            
+            socket.emit('send-message', messageData);
             messageInput.value = '';
+            cancelReplyFunc();
             stopTyping();
         }
+        
+        function processEmotes(text) {
+            // Simple emote replacement - you can expand this with custom emotes
+            return text; // For now, just return as is since emotes are already unicode
+        }
+        
+        // Event listeners
         setUsernameBtn.addEventListener('click', setUsername);
         usernameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') setUsername(); });
         messageForm.addEventListener('submit', (e) => { e.preventDefault(); sendMessage(); });
+        emoteBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (emotePicker.classList.contains('show')) {
+                hideEmotePicker();
+            } else {
+                showEmotePicker();
+            }
+        });
+        cancelReply.addEventListener('click', cancelReplyFunc);
+        
+        // Close emote picker when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!messageForm.contains(e.target)) {
+                hideEmotePicker();
+            }
+        });
+        
         let isTyping = false;
         messageInput.addEventListener('input', () => {
             if (!currentUser) return;
@@ -137,9 +309,12 @@
             clearTimeout(typingTimer);
             typingTimer = setTimeout(stopTyping, 1000);
         });
+        
         function stopTyping() {
             if (currentUser && isTyping) { isTyping = false; socket.emit('typing', { isTyping: false }); }
         }
+        
+        // Socket event listeners
         socket.on('connect', () => { if (currentUser && currentChannel) joinChannel(); });
         socket.on('disconnect', () => addSystemMessage('Disconnected. Reconnecting...'));
         socket.on('connect_error', () => showError('Connection failed. Please refresh.'));
@@ -155,15 +330,50 @@
             else { typingIndicator.textContent = `${typingUsers.length} people are typing...`; }
         });
         socket.on('error', (data) => showError(data.message));
-        function showError(message) { errorContainer.innerHTML = `<div class="error">${message}</div>`; setTimeout(() => { errorContainer.innerHTML = ''; }, 5000); }
+        
+        function showError(message) { 
+            errorContainer.innerHTML = `<div class="error">${message}</div>`; 
+            setTimeout(() => { errorContainer.innerHTML = ''; }, 5000); 
+        }
+        
         function addMessage(data) {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message';
+            messageDiv.dataset.username = data.username;
+            
             const time = new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            messageDiv.innerHTML = `<div class="message-header">${escapeHtml(data.username)}<span class="message-time">${time}</span></div><div class="message-content">${escapeHtml(data.message)}</div>`;
+            const userColor = getUserColor(data.username);
+            
+            let messageHTML = '';
+            
+            // Add reply indicator if this is a reply
+            if (data.replyTo) {
+                const replyColor = getUserColor(data.replyTo.username);
+                messageHTML += `<div class="reply-indicator">↳ Replying to <span class="${replyColor}">${escapeHtml(data.replyTo.username)}</span></div>`;
+                messageDiv.classList.add('reply');
+            }
+            
+            messageHTML += `
+                <div class="message-header">
+                    <span class="message-username ${userColor}">${escapeHtml(data.username)}</span>
+                    <span class="message-time">${time}</span>
+                </div>
+                <div class="message-content">${processEmotes(escapeHtml(data.message))}</div>
+            `;
+            
+            messageDiv.innerHTML = messageHTML;
+            
+            // Add click listener for replies (except for system messages and own messages)
+            if (data.username !== currentUser) {
+                messageDiv.addEventListener('click', () => {
+                    setReply(data.username, data.message);
+                });
+            }
+            
             messages.appendChild(messageDiv);
             scrollToBottom();
         }
+        
         function addSystemMessage(message) {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message system';
@@ -171,12 +381,31 @@
             messages.appendChild(messageDiv);
             scrollToBottom();
         }
-        function updateChannelInfo(data) { const count = data.userCount || 0; userCount.textContent = `${count} viewer${count !== 1 ? 's' : ''}`; }
-        function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
-        function scrollToBottom() { messages.scrollTop = messages.scrollHeight; }
+        
+        function updateChannelInfo(data) { 
+            const count = data.userCount || 0; 
+            userCount.textContent = `${count} viewer${count !== 1 ? 's' : ''}`; 
+        }
+        
+        function escapeHtml(text) { 
+            const div = document.createElement('div'); 
+            div.textContent = text; 
+            return div.innerHTML; 
+        }
+        
+        function scrollToBottom() { 
+            messages.scrollTop = messages.scrollHeight; 
+        }
+        
         document.addEventListener('DOMContentLoaded', () => {
-            try { initializeFromURL(); addSystemMessage('Connecting to chat...'); }
-            catch (error) { console.error('Initialization Error:', error); showError('Failed to initialize chat'); }
+            try { 
+                initializeFromURL(); 
+                addSystemMessage('Connecting to chat...'); 
+            }
+            catch (error) { 
+                console.error('Initialization Error:', error); 
+                showError('Failed to initialize chat'); 
+            }
         });
     </script>
 </body>
