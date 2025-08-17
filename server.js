@@ -30,22 +30,10 @@ const MAX_MESSAGE_LENGTH = 500;
 const MAX_USERNAME_LENGTH = 20;
 const MIN_USERNAME_LENGTH = 2;
 
-// Custom emotes and GIFs (same as client for validation)
-const customEmotes = {
-  'Kappa': 'https://static-cdn.jtvnw.net/emoticons/v2/25/default/dark/1.0',
-  'PogChamp': 'https://static-cdn.jtvnw.net/emoticons/v2/88/default/dark/1.0',
-  'KEKW': 'https://cdn.7tv.app/emote/60a57218eca3e55c5e6e9cd3/1x.webp',
-  'LUL': 'https://static-cdn.jtvnw.net/emoticons/v2/425618/default/dark/1.0',
-  'MonkaS': 'https://cdn.7tv.app/emote/60a57218eca3e55c5e6e9cd0/1x.webp',
-  'EZ': 'https://cdn.7tv.app/emote/60a5722dec18e05c5e6e9cdf/1x.webp',
-};
-
-const gifEmotes = {
-  'PepeParty': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4862/1x.gif',
-  'CatJAM': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4851/1x.gif',
-  'EzDance': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f485f/1x.gif',
-  'PartyParrot': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4865/1x.gif',
-};
+// Emote cache and API management
+let emotesCache = new Map(); // Map emote name to URL
+let emotesLastFetch = 0;
+const EMOTES_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 
 // User color classes for consistent coloring
 const userColors = [
@@ -61,6 +49,49 @@ function getUserColor(username) {
     hash = username.charCodeAt(i) + ((hash << 5) - hash);
   }
   return userColors[Math.abs(hash) % userColors.length];
+}
+
+// Fetch emotes from external API
+async function fetchEmotesFromAPI() {
+  try {
+    console.log('Fetching emotes from external API...');
+    const fetch = (await import('node-fetch')).default;
+    const response = await fetch('https://stream.0domain.click/emotes.json');
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const emotesData = await response.json();
+    console.log(`Loaded ${emotesData.length} emotes from API`);
+    
+    // Clear and rebuild cache
+    emotesCache.clear();
+    emotesData.forEach(emote => {
+      if (emote.Name && emote.ImageUrl) {
+        emotesCache.set(emote.Name, emote.ImageUrl);
+      }
+    });
+    
+    emotesLastFetch = Date.now();
+    return emotesData;
+    
+  } catch (error) {
+    console.error('Failed to fetch emotes from API:', error);
+    return [];
+  }
+}
+
+// Get emotes with caching
+async function getEmotes() {
+  const now = Date.now();
+  
+  // Check if cache is expired or empty
+  if (emotesCache.size === 0 || (now - emotesLastFetch) > EMOTES_CACHE_DURATION) {
+    await fetchEmotesFromAPI();
+  }
+  
+  return emotesCache;
 }
 
 // Validate and sanitize input
@@ -81,18 +112,19 @@ function validateMessage(message) {
   return trimmed;
 }
 
-function validateEmotes(message) {
-  // Count custom emotes to prevent spam
-  const allEmotes = { ...customEmotes, ...gifEmotes };
+async function validateEmotes(message) {
+  // Get current emotes from cache
+  const emotes = await getEmotes();
   let emoteCount = 0;
   
-  Object.keys(allEmotes).forEach(emoteName => {
+  // Count emotes in message
+  for (const [emoteName] of emotes) {
     const regex = new RegExp(`:${emoteName}:`, 'g');
     const matches = message.match(regex);
     if (matches) {
       emoteCount += matches.length;
     }
-  });
+  }
   
   // Limit to 10 emotes per message
   return emoteCount <= 10;
@@ -224,7 +256,7 @@ io.on('connection', (socket) => {
     console.log(`${validUsername} (${socket.id}) joined channel: ${validChannel}`);
   });
 
-  socket.on('send-message', ({ message, replyTo }) => {
+  socket.on('send-message', async ({ message, replyTo }) => {
     const user = users.get(socket.id);
     const validMessage = validateMessage(message);
     
@@ -233,7 +265,8 @@ io.on('connection', (socket) => {
     }
     
     // Validate emote usage
-    if (!validateEmotes(validMessage)) {
+    const emotesValid = await validateEmotes(validMessage);
+    if (!emotesValid) {
       return socket.emit('error', { message: 'Too many emotes in message. Limit: 10 per message.' });
     }
 
@@ -428,16 +461,37 @@ setInterval(() => {
   }
 }, 5000); // Check every 5 seconds
 
-// API endpoint for available emotes
-app.get('/api/emotes', (req, res) => {
-  res.json({
-    custom: customEmotes,
-    gifs: gifEmotes,
-    categories: [
-      { id: 'custom', name: 'Custom Emotes', count: Object.keys(customEmotes).length },
-      { id: 'gifs', name: 'Animated', count: Object.keys(gifEmotes).length }
-    ]
-  });
+// API endpoint to serve emotes.json (proxy to external API)
+app.get('/emotes.json', async (req, res) => {
+  try {
+    const emotesData = await fetchEmotesFromAPI();
+    res.setHeader('Cache-Control', 'public, max-age=300'); // Cache for 5 minutes
+    res.json(emotesData);
+  } catch (error) {
+    console.error('Error serving emotes:', error);
+    res.status(500).json({ error: 'Failed to fetch emotes' });
+  }
+});
+
+// API endpoint for available emotes (legacy, now proxies to external API)
+app.get('/api/emotes', async (req, res) => {
+  try {
+    const emotes = await getEmotes();
+    const emotesArray = Array.from(emotes.entries()).map(([name, url]) => ({
+      name,
+      url,
+      isAnimated: url.includes('.gif')
+    }));
+    
+    res.json({
+      emotes: emotesArray,
+      count: emotesArray.length,
+      lastUpdated: new Date(emotesLastFetch).toISOString()
+    });
+  } catch (error) {
+    console.error('Error serving emotes API:', error);
+    res.status(500).json({ error: 'Failed to fetch emotes' });
+  }
 });
 
 // API endpoint for health check
@@ -446,7 +500,9 @@ app.get('/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
     channels: channels.size,
-    totalUsers: users.size
+    totalUsers: users.size,
+    emotesLoaded: emotesCache.size,
+    emotesLastFetch: emotesLastFetch ? new Date(emotesLastFetch).toISOString() : null
   });
 });
 
@@ -463,7 +519,15 @@ app.get('/api/channels', (req, res) => {
   res.json({ channels: channelStats });
 });
 
+// Initialize emotes cache on startup
+(async () => {
+  console.log('Initializing emotes cache...');
+  await fetchEmotesFromAPI();
+  console.log(`Emotes cache initialized with ${emotesCache.size} emotes`);
+})();
+
 server.listen(PORT, () => {
   console.log(`Enhanced chat server running on port ${PORT}`);
   console.log(`Health check available at http://localhost:${PORT}/health`);
+  console.log(`Emotes endpoint available at http://localhost:${PORT}/emotes.json`);
 });
