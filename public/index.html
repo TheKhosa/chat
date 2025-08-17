@@ -357,37 +357,53 @@
 
         // Set username and join channel
         function setUsername() {
-            const username = usernameInput.value.trim();
-            
-            if (!username || username.length < 2) {
-                showError('Username must be at least 2 characters');
-                return;
-            }
+            try {
+                const username = usernameInput.value.trim();
+                
+                if (!username || username.length < 2) {
+                    showError('Username must be at least 2 characters');
+                    return;
+                }
 
-            if (username.length > 20) {
-                showError('Username too long (max 20 characters)');
-                return;
-            }
+                if (username.length > 20) {
+                    showError('Username too long (max 20 characters)');
+                    return;
+                }
 
-            currentUser = username;
-            usernameSetup.classList.remove('show');
-            chatContainer.style.display = 'flex';
-            joinChannel();
+                currentUser = username;
+                console.log('Username set to:', currentUser);
+                usernameSetup.classList.remove('show');
+                chatContainer.style.display = 'flex';
+                joinChannel();
+            } catch (error) {
+                console.error('Error setting username:', error);
+                showError('Failed to set username');
+            }
         }
 
         // Join the channel
         function joinChannel() {
-            if (!currentUser || !currentChannel) {
-                console.error('Missing user or channel:', { currentUser, currentChannel });
-                return;
+            try {
+                if (!currentUser || !currentChannel) {
+                    console.error('Missing user or channel:', { currentUser, currentChannel });
+                    return;
+                }
+                
+                if (!socket.connected) {
+                    console.log('Socket not connected, waiting for connection...');
+                    return;
+                }
+                
+                console.log('Joining channel:', { username: currentUser, channel: currentChannel });
+                
+                socket.emit('join-channel', { 
+                    username: currentUser, 
+                    channel: currentChannel 
+                });
+            } catch (error) {
+                console.error('Error joining channel:', error);
+                showError('Failed to join channel');
             }
-            
-            console.log('Joining channel:', { username: currentUser, channel: currentChannel });
-            
-            socket.emit('join-channel', { 
-                username: currentUser, 
-                channel: currentChannel 
-            });
         }
 
         // Event listeners
@@ -421,31 +437,36 @@
         });
 
         function sendMessage() {
-            const message = messageInput.value.trim();
-            
-            console.log('Attempting to send message:', { message, currentUser, currentChannel });
-            
-            if (!message) {
-                console.log('Message is empty, not sending');
-                return;
-            }
+            try {
+                const message = messageInput.value.trim();
+                
+                console.log('Attempting to send message:', { message, currentUser, currentChannel });
+                
+                if (!message) {
+                    console.log('Message is empty, not sending');
+                    return;
+                }
 
-            if (!currentUser) {
-                showError('Please set a username first');
-                console.log('No username set');
-                return;
-            }
+                if (!currentUser) {
+                    showError('Please set a username first');
+                    console.log('No username set');
+                    return;
+                }
 
-            if (!socket.connected) {
-                showError('Not connected to chat server');
-                console.log('Socket not connected');
-                return;
+                if (!socket.connected) {
+                    showError('Not connected to chat server');
+                    console.log('Socket not connected');
+                    return;
+                }
+                
+                console.log('Emitting send-message event');
+                socket.emit('send-message', { message });
+                messageInput.value = '';
+                stopTyping();
+            } catch (error) {
+                console.error('Error sending message:', error);
+                showError('Failed to send message');
             }
-            
-            console.log('Emitting send-message event');
-            socket.emit('send-message', { message });
-            messageInput.value = '';
-            stopTyping();
         }
 
         // Typing indicator
@@ -564,13 +585,33 @@
             return div.innerHTML;
         }
 
+        // Global error handling
+        window.addEventListener('error', (event) => {
+            console.error('Global error:', event.error);
+            showError('An error occurred. Please refresh the page.');
+        });
+
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('Unhandled promise rejection:', event.reason);
+        });
+
         // Initialize the chat when page loads
         document.addEventListener('DOMContentLoaded', () => {
             console.log('Chat widget loaded, initializing...');
-            initializeFromURL();
             
-            // Add a welcome message to show the chat is working
-            addSystemMessage('Chat widget loaded. Connecting to server...');
+            try {
+                // Set up all event listeners first
+                setupEventListeners();
+                
+                // Then initialize the chat
+                initializeFromURL();
+                
+                // Add a welcome message to show the chat is working
+                addSystemMessage('Chat widget loaded. Connecting to server...');
+            } catch (error) {
+                console.error('Error during initialization:', error);
+                showError('Failed to initialize chat');
+            }
         });
     </script>
 </body>
