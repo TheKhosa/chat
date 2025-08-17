@@ -59,11 +59,12 @@
             align-items: center;
         }
 
+        /* --- FIX: This is the username setup form the JavaScript expects --- */
         .username-setup {
             background: #0f0f0f;
             padding: 12px 16px;
             border-bottom: 1px solid #2c2c2c;
-            display: none;
+            display: none; /* Initially hidden, shown by JS */
         }
 
         .username-setup.show {
@@ -224,36 +225,6 @@
             text-align: center;
             font-size: 12px;
         }
-
-        .users-count {
-            color: #8a8a8a;
-            font-size: 11px;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #27ae60;
-            display: inline-block;
-            margin-right: 6px;
-        }
-
-        .chat-title {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        /* Hide scrollbar for embed */
-        body::-webkit-scrollbar {
-            display: none;
-        }
-
-        body {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
     </style>
 </head>
 <body>
@@ -261,28 +232,21 @@
         <div class="header">
             <h1>💬 Real-time Chat</h1>
         </div>
-
-        <!-- Login Form -->
-        <div id="loginForm" class="login-form">
-            <h2>Join a Chat Channel</h2>
-            <div class="form-group">
-                <label for="username">Username:</label>
-                <input type="text" id="username" placeholder="Enter your username" maxlength="20" required>
-            </div>
-            <div class="form-group">
-                <label for="channel">Channel:</label>
-                <input type="text" id="channel" placeholder="Enter channel name" maxlength="30" required>
-            </div>
-            <button id="joinBtn" class="btn">Join Channel</button>
-            <div id="loginError"></div>
+        
+        <!-- FIX: This is the correct div structure for the username input that the JS expects -->
+        <div id="usernameSetup" class="username-setup">
+            <input type="text" id="usernameInput" placeholder="Enter your username..." maxlength="20">
+            <button id="setUsernameBtn">Set Username</button>
         </div>
 
-        <!-- Chat Interface -->
-        <div id="chatContainer" class="chat-container">
+        <!-- FIX: Added the missing error container div -->
+        <div id="errorContainer"></div>
+
+        <!-- Chat Interface (initially hidden by JS if no username is set) -->
+        <div id="chatContainer" class="chat-container" style="display: none;">
             <div class="channel-info">
                 <div id="channelName"></div>
                 <div id="userCount"></div>
-                <div id="usersList" class="users-list" style="display: none;"></div>
             </div>
             
             <div id="messages" class="messages"></div>
@@ -330,25 +294,18 @@
             currentChannel = urlParams.get('channel') || urlParams.get('stream') || 'general';
             const providedUsername = urlParams.get('username') || urlParams.get('user');
             
-            console.log('Initializing with:', { currentChannel, providedUsername });
-            
             channelName.textContent = `#${currentChannel}`;
             
-            if (providedUsername && providedUsername.length >= 2) {
-                currentUser = providedUsername;
-                console.log('Using provided username:', currentUser);
+            if (providedUsername && providedUsername.trim().length >= 2) {
+                currentUser = providedUsername.trim();
                 usernameSetup.classList.remove('show');
                 chatContainer.style.display = 'flex';
                 
-                // Join immediately if socket is already connected
                 if (socket.connected) {
                     joinChannel();
                 }
             } else {
-                // Generate random username but allow user to change it
-                const randomUsername = generateRandomUsername();
-                console.log('Generated random username:', randomUsername);
-                usernameInput.value = randomUsername;
+                usernameInput.value = generateRandomUsername();
                 usernameSetup.classList.add('show');
                 chatContainer.style.display = 'none';
                 usernameInput.focus();
@@ -357,153 +314,91 @@
 
         // Set username and join channel
         function setUsername() {
-            try {
-                const username = usernameInput.value.trim();
-                
-                if (!username || username.length < 2) {
-                    showError('Username must be at least 2 characters');
-                    return;
-                }
-
-                if (username.length > 20) {
-                    showError('Username too long (max 20 characters)');
-                    return;
-                }
-
-                currentUser = username;
-                console.log('Username set to:', currentUser);
-                usernameSetup.classList.remove('show');
-                chatContainer.style.display = 'flex';
-                joinChannel();
-            } catch (error) {
-                console.error('Error setting username:', error);
-                showError('Failed to set username');
+            const username = usernameInput.value.trim();
+            if (!username || username.length < 2) {
+                showError('Username must be at least 2 characters');
+                return;
             }
+            if (username.length > 20) {
+                showError('Username is too long (max 20 characters)');
+                return;
+            }
+            currentUser = username;
+            usernameSetup.classList.remove('show');
+            chatContainer.style.display = 'flex';
+            joinChannel();
         }
 
         // Join the channel
         function joinChannel() {
-            try {
-                if (!currentUser || !currentChannel) {
-                    console.error('Missing user or channel:', { currentUser, currentChannel });
-                    return;
-                }
-                
-                if (!socket.connected) {
-                    console.log('Socket not connected, waiting for connection...');
-                    return;
-                }
-                
-                console.log('Joining channel:', { username: currentUser, channel: currentChannel });
-                
-                socket.emit('join-channel', { 
-                    username: currentUser, 
-                    channel: currentChannel 
-                });
-            } catch (error) {
-                console.error('Error joining channel:', error);
-                showError('Failed to join channel');
+            if (!currentUser || !currentChannel) return;
+            if (!socket.connected) return;
+            
+            socket.emit('join-channel', { 
+                username: currentUser, 
+                channel: currentChannel 
+            });
+        }
+        
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message || !currentUser) return;
+            if (!socket.connected) {
+                showError('Not connected to chat server');
+                return;
             }
+            socket.emit('send-message', { message });
+            messageInput.value = '';
+            stopTyping();
         }
 
-        // Event listeners
+        // --- Event Listeners Setup ---
         setUsernameBtn.addEventListener('click', setUsername);
         usernameInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') setUsername();
         });
-
-        // Send message
+        
+        // FIX: Simplified to a single submit event for sending messages
         messageForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            e.stopPropagation();
             sendMessage();
-            return false;
         });
-
-        // Also handle send button click directly
-        document.querySelector('.send-btn').addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            sendMessage();
-            return false;
-        });
-
-        // Handle Enter key in message input
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-
-        function sendMessage() {
-            try {
-                const message = messageInput.value.trim();
-                
-                console.log('Attempting to send message:', { message, currentUser, currentChannel });
-                
-                if (!message) {
-                    console.log('Message is empty, not sending');
-                    return;
-                }
-
-                if (!currentUser) {
-                    showError('Please set a username first');
-                    console.log('No username set');
-                    return;
-                }
-
-                if (!socket.connected) {
-                    showError('Not connected to chat server');
-                    console.log('Socket not connected');
-                    return;
-                }
-                
-                console.log('Emitting send-message event');
-                socket.emit('send-message', { message });
-                messageInput.value = '';
-                stopTyping();
-            } catch (error) {
-                console.error('Error sending message:', error);
-                showError('Failed to send message');
-            }
-        }
 
         // Typing indicator
+        let isTyping = false;
         messageInput.addEventListener('input', () => {
             if (!currentUser) return;
-            
-            socket.emit('typing', { isTyping: true });
-            
+            if (!isTyping) {
+                isTyping = true;
+                socket.emit('typing', { isTyping: true });
+            }
             clearTimeout(typingTimer);
-            typingTimer = setTimeout(() => {
-                stopTyping();
-            }, 1000);
+            typingTimer = setTimeout(stopTyping, 1000);
         });
 
         function stopTyping() {
-            if (currentUser) {
+            if (currentUser && isTyping) {
+                isTyping = false;
                 socket.emit('typing', { isTyping: false });
             }
         }
 
-        // Socket.IO connection and debugging
+        // --- Socket.IO Event Handlers ---
         socket.on('connect', () => {
             console.log('Connected to server:', socket.id);
-            // If we already have user and channel, try to join
             if (currentUser && currentChannel) {
                 joinChannel();
             }
         });
 
         socket.on('disconnect', () => {
-            console.log('Disconnected from server');
+            addSystemMessage('Disconnected from server. Attempting to reconnect...');
         });
 
         socket.on('connect_error', (error) => {
-            console.error('Connection error:', error);
             showError('Connection failed. Please refresh the page.');
         });
+
         socket.on('joined-channel', (data) => {
             addSystemMessage(`Welcome to #${data.channel}!`);
             messageInput.focus();
@@ -528,10 +423,13 @@
         });
 
         socket.on('user-typing', (data) => {
-            if (data.isTyping) {
-                typingIndicator.textContent = `${data.username} is typing...`;
-            } else {
+            const typingUsers = Object.keys(data.typingUsers);
+            if (typingUsers.length === 0) {
                 typingIndicator.textContent = '';
+            } else if (typingUsers.length === 1) {
+                typingIndicator.textContent = `${typingUsers[0]} is typing...`;
+            } else {
+                 typingIndicator.textContent = `${typingUsers.length} people are typing...`;
             }
         });
 
@@ -539,31 +437,24 @@
             showError(data.message);
         });
 
-        // Helper functions
+        // --- Helper Functions ---
         function showError(message) {
             errorContainer.innerHTML = `<div class="error">${message}</div>`;
-            setTimeout(() => {
-                errorContainer.innerHTML = '';
-            }, 5000);
+            setTimeout(() => { errorContainer.innerHTML = ''; }, 5000);
         }
 
         function addMessage(data) {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message';
-            
             const time = new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            const isOwnMessage = data.username === currentUser;
-            
             messageDiv.innerHTML = `
                 <div class="message-header">
-                    ${escapeHtml(data.username)}${isOwnMessage ? ' (You)' : ''}
+                    ${escapeHtml(data.username)}
                     <span class="message-time">${time}</span>
                 </div>
-                <div class="message-content">${escapeHtml(data.message)}</div>
-            `;
-            
+                <div class="message-content">${escapeHtml(data.message)}</div>`;
             messages.appendChild(messageDiv);
-            messages.scrollTop = messages.scrollHeight;
+            scrollToBottom();
         }
 
         function addSystemMessage(message) {
@@ -571,9 +462,9 @@
             messageDiv.className = 'message system';
             messageDiv.textContent = message;
             messages.appendChild(messageDiv);
-            messages.scrollTop = messages.scrollHeight;
+            scrollToBottom();
         }
-
+        
         function updateChannelInfo(data) {
             const count = data.userCount || 0;
             userCount.textContent = `${count} viewer${count !== 1 ? 's' : ''}`;
@@ -585,28 +476,15 @@
             return div.innerHTML;
         }
 
-        // Global error handling
-        window.addEventListener('error', (event) => {
-            console.error('Global error:', event.error);
-            showError('An error occurred. Please refresh the page.');
-        });
-
-        window.addEventListener('unhandledrejection', (event) => {
-            console.error('Unhandled promise rejection:', event.reason);
-        });
-
-        // Initialize the chat when page loads
+        function scrollToBottom() {
+            messages.scrollTop = messages.scrollHeight;
+        }
+        
+        // Initialize the chat when the page loads
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('Chat widget loaded, initializing...');
-            
             try {
-                // Set up all event listeners first
-                setupEventListeners();
-                
-                // Then initialize the chat
+                // FIX: Removed call to non-existent function
                 initializeFromURL();
-                
-                // Add a welcome message to show the chat is working
                 addSystemMessage('Chat widget loaded. Connecting to server...');
             } catch (error) {
                 console.error('Error during initialization:', error);
