@@ -419,8 +419,8 @@
         }
         
         function setReply(username, messageContent) {
-            currentReply = { username, messageContent };
-            replyContent.innerHTML = `Replying to <strong class="${getUserColor(username)}">${escapeHtml(username)}</strong>: ${escapeHtml(messageContent.substring(0, 50))}${messageContent.length > 50 ? '...' : ''}`;
+            currentReply = { username: username, messageContent: messageContent };
+            replyContent.innerHTML = 'Replying to <strong class="' + getUserColor(username) + '">' + escapeHtml(username) + '</strong>: ' + escapeHtml(messageContent.substring(0, 50)) + (messageContent.length > 50 ? '...' : '');
             replyPreview.style.display = 'block';
             messageInput.focus();
         }
@@ -504,9 +504,14 @@
         
         // Event listeners
         setUsernameBtn.addEventListener('click', setUsername);
-        usernameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') setUsername(); });
-        messageForm.addEventListener('submit', (e) => { e.preventDefault(); sendMessage(); });
-        emoteBtn.addEventListener('click', (e) => {
+        usernameInput.addEventListener('keypress', function(e) { 
+            if (e.key === 'Enter') setUsername(); 
+        });
+        messageForm.addEventListener('submit', function(e) { 
+            e.preventDefault(); 
+            sendMessage(); 
+        });
+        emoteBtn.addEventListener('click', function(e) {
             e.preventDefault();
             if (emotePicker.classList.contains('show')) {
                 hideEmotePicker();
@@ -517,16 +522,19 @@
         cancelReply.addEventListener('click', cancelReplyFunc);
         
         // Close emote picker when clicking outside
-        document.addEventListener('click', (e) => {
+        document.addEventListener('click', function(e) {
             if (!messageForm.contains(e.target)) {
                 hideEmotePicker();
             }
         });
         
         let isTyping = false;
-        messageInput.addEventListener('input', () => {
+        messageInput.addEventListener('input', function() {
             if (!currentUser) return;
-            if (!isTyping) { isTyping = true; socket.emit('typing', { isTyping: true }); }
+            if (!isTyping) { 
+                isTyping = true; 
+                socket.emit('typing', { isTyping: true }); 
+            }
             clearTimeout(typingTimer);
             typingTimer = setTimeout(stopTyping, 1000);
         });
@@ -536,25 +544,54 @@
         }
         
         // Socket event listeners
-        socket.on('connect', () => { if (currentUser && currentChannel) joinChannel(); });
-        socket.on('disconnect', () => addSystemMessage('Disconnected. Reconnecting...'));
-        socket.on('connect_error', () => showError('Connection failed. Please refresh.'));
-        socket.on('joined-channel', (data) => { addSystemMessage(`Welcome to #${data.channel}!`); messageInput.focus(); });
-        socket.on('channel-info', (data) => updateChannelInfo(data));
-        socket.on('user-joined', (data) => { addSystemMessage(`${data.username} joined`); updateChannelInfo(data); });
-        socket.on('user-left', (data) => { addSystemMessage(`${data.username} left`); updateChannelInfo(data); });
-        socket.on('new-message', (data) => addMessage(data));
-        socket.on('user-typing', (data) => {
-            const typingUsers = Object.keys(data.typingUsers);
-            if (typingUsers.length === 0) { typingIndicator.textContent = ''; }
-            else if (typingUsers.length === 1) { typingIndicator.textContent = `${typingUsers[0]} is typing...`; }
-            else { typingIndicator.textContent = `${typingUsers.length} people are typing...`; }
+        socket.on('connect', function() { 
+            if (currentUser && currentChannel) joinChannel(); 
         });
-        socket.on('error', (data) => showError(data.message));
+        socket.on('disconnect', function() { 
+            addSystemMessage('Disconnected. Reconnecting...'); 
+        });
+        socket.on('connect_error', function() { 
+            showError('Connection failed. Please refresh.'); 
+        });
+        socket.on('joined-channel', function(data) { 
+            addSystemMessage('Welcome to #' + data.channel + '!'); 
+            messageInput.focus(); 
+        });
+        socket.on('channel-info', function(data) { 
+            updateChannelInfo(data); 
+        });
+        socket.on('user-joined', function(data) { 
+            addSystemMessage(data.username + ' joined'); 
+            updateChannelInfo(data); 
+        });
+        socket.on('user-left', function(data) { 
+            addSystemMessage(data.username + ' left'); 
+            updateChannelInfo(data); 
+        });
+        socket.on('new-message', function(data) { 
+            addMessage(data); 
+        });
+        socket.on('user-typing', function(data) {
+            const typingUsers = Object.keys(data.typingUsers);
+            if (typingUsers.length === 0) { 
+                typingIndicator.textContent = ''; 
+            }
+            else if (typingUsers.length === 1) { 
+                typingIndicator.textContent = typingUsers[0] + ' is typing...'; 
+            }
+            else { 
+                typingIndicator.textContent = typingUsers.length + ' people are typing...'; 
+            }
+        });
+        socket.on('error', function(data) { 
+            showError(data.message); 
+        });
         
         function showError(message) { 
-            errorContainer.innerHTML = `<div class="error">${message}</div>`; 
-            setTimeout(() => { errorContainer.innerHTML = ''; }, 5000); 
+            errorContainer.innerHTML = '<div class="error">' + message + '</div>'; 
+            setTimeout(function() { 
+                errorContainer.innerHTML = ''; 
+            }, 5000); 
         }
         
         function addMessage(data) {
@@ -570,17 +607,15 @@
             // Add reply indicator if this is a reply
             if (data.replyTo) {
                 const replyColor = getUserColor(data.replyTo.username);
-                messageHTML += `<div class="reply-indicator">↳ Replying to <span class="${replyColor}">${escapeHtml(data.replyTo.username)}</span></div>`;
+                messageHTML += '<div class="reply-indicator">↳ Replying to <span class="' + replyColor + '">' + escapeHtml(data.replyTo.username) + '</span></div>';
                 messageDiv.classList.add('reply');
             }
             
-            messageHTML += `
-                <div class="message-header">
-                    <span class="message-username ${userColor}">${escapeHtml(data.username)}</span>
-                    <span class="message-time">${time}</span>
-                </div>
-                <div class="message-content">${processEmotes(escapeHtml(data.message))}</div>
-            `;
+            messageHTML += '<div class="message-header">' +
+                '<span class="message-username ' + userColor + '">' + escapeHtml(data.username) + '</span>' +
+                '<span class="message-time">' + time + '</span>' +
+                '</div>' +
+                '<div class="message-content">' + processEmotes(escapeHtml(data.message)) + '</div>';
             
             messageDiv.innerHTML = messageHTML;
             
@@ -605,7 +640,7 @@
         
         function updateChannelInfo(data) { 
             const count = data.userCount || 0; 
-            userCount.textContent = `${count} viewer${count !== 1 ? 's' : ''}`; 
+            userCount.textContent = count + ' viewer' + (count !== 1 ? 's' : ''); 
         }
         
         function escapeHtml(text) { 
