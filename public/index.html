@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stream Chat</title>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/emoji-js@8.0.0/lib/emoji.min.js"></script>
+    <!-- Replaced emoji-js with Twemoji for better emoji rendering and support -->
+    <script src="https://cdn.jsdelivr.net/npm/twemoji@latest/dist/twemoji.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #1a1a1a; color: #e5e5e5; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -47,115 +48,37 @@
         .emote-btn:hover { background: #3c3c3c; }
         .send-btn { background: #c02b2b; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; transition: background 0.2s; font-size: 12px; }
         .send-btn:hover { background: #e04141; }
-        .emote-picker { 
-            position: absolute; 
-            bottom: 100%; 
-            right: 0; 
-            background: #0f0f0f; 
-            border: 1px solid #2c2c2c; 
-            border-radius: 6px; 
-            display: none; 
-            z-index: 1000; 
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            width: 320px;
-            max-height: 300px;
-            overflow-y: auto;
-        }
+        .emote-picker { position: absolute; bottom: 100%; right: 0; background: #0f0f0f; border: 1px solid #2c2c2c; border-radius: 6px; display: none; z-index: 1000; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); width: 320px; max-height: 300px; overflow-y: auto; }
         .emote-picker.show { display: block; }
-        
-        .emote-tabs {
-            display: flex;
-            border-bottom: 1px solid #2c2c2c;
-            background: #0a0a0a;
-        }
-        
-        .emote-tab {
-            flex: 1;
-            padding: 8px 12px;
-            background: none;
-            border: none;
-            color: #8a8a8a;
-            cursor: pointer;
-            font-size: 11px;
-            transition: all 0.2s;
-        }
-        
-        .emote-tab.active {
-            color: #c02b2b;
-            background: #1a1a1a;
-        }
-        
-        .emote-tab:hover {
-            background: rgba(255, 255, 255, 0.05);
-        }
-        
-        .emote-content {
-            padding: 8px;
-            max-height: 240px;
-            overflow-y: auto;
-        }
-        
-        .emote-grid { 
-            display: grid; 
-            grid-template-columns: repeat(8, 1fr); 
-            gap: 4px; 
-        }
-        
-        .emote-item { 
-            background: none; 
-            border: none; 
-            padding: 6px; 
-            border-radius: 4px; 
-            cursor: pointer; 
-            font-size: 18px; 
-            transition: background 0.2s; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            min-height: 32px;
-        }
-        
-        .emote-item:hover { 
-            background: rgba(255, 255, 255, 0.1); 
-        }
-        
-        .emote-item img {
-            width: 24px;
-            height: 24px;
-            object-fit: contain;
-        }
+        .emote-tabs { display: flex; border-bottom: 1px solid #2c2c2c; background: #0a0a0a; }
+        .emote-tab { flex: 1; padding: 8px 12px; background: none; border: none; color: #8a8a8a; cursor: pointer; font-size: 11px; transition: all 0.2s; }
+        .emote-tab.active { color: #c02b2b; background: #1a1a1a; }
+        .emote-tab:hover { background: rgba(255, 255, 255, 0.05); }
+        .emote-content { padding: 8px; max-height: 240px; overflow-y: auto; }
+        .emote-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+        .emote-item { background: none; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 18px; transition: background 0.2s; display: flex; align-items: center; justify-content: center; min-height: 32px; }
+        .emote-item:hover { background: rgba(255, 255, 255, 0.1); }
+        .emote-item img { width: 24px; height: 24px; object-fit: contain; }
         .error { color: #ff6b6b; background: rgba(255, 107, 107, 0.1); padding: 8px; border-radius: 4px; margin: 8px; text-align: center; font-size: 12px; }
         body::-webkit-scrollbar { display: none; }
         body { -ms-overflow-style: none; scrollbar-width: none; }
         
         /* User Color Classes */
-        .user-red { color: #ff6b6b !important; }
-        .user-orange { color: #ffa726 !important; }
-        .user-yellow { color: #ffeb3b !important; }
-        .user-green { color: #66bb6a !important; }
-        .user-blue { color: #42a5f5 !important; }
-        .user-purple { color: #ab47bc !important; }
-        .user-pink { color: #ec407a !important; }
-        .user-cyan { color: #26c6da !important; }
-        .user-lime { color: #9ccc65 !important; }
-        .user-indigo { color: #5c6bc0 !important; }
-        .user-teal { color: #26a69a !important; }
-        .user-amber { color: #ffca28 !important; }
+        .user-red { color: #ff6b6b !important; } .user-orange { color: #ffa726 !important; } .user-yellow { color: #ffeb3b !important; } .user-green { color: #66bb6a !important; } .user-blue { color: #42a5f5 !important; } .user-purple { color: #ab47bc !important; } .user-pink { color: #ec407a !important; } .user-cyan { color: #26c6da !important; } .user-lime { color: #9ccc65 !important; } .user-indigo { color: #5c6bc0 !important; } .user-teal { color: #26a69a !important; } .user-amber { color: #ffca28 !important; }
         
         /* Emote styling in messages */
-        .emote { 
-            font-size: 18px; 
-            vertical-align: middle; 
-            margin: 0 2px; 
-            display: inline-block;
+        /* This class is now used by Twemoji's output */
+        .emote {
+            height: 1.5em;
+            width: 1.5em;
+            vertical-align: middle;
+            margin: 0 2px;
         }
-        
         .custom-emote {
             height: 24px;
             vertical-align: middle;
             margin: 0 2px;
         }
-        
         .gif-emote {
             height: 32px;
             vertical-align: middle;
@@ -289,7 +212,6 @@
         
         function getUserColor(username) {
             if (!userColors[username]) {
-                // Generate consistent color based on username hash
                 let hash = 0;
                 for (let i = 0; i < username.length; i++) {
                     hash = username.charCodeAt(i) + ((hash << 5) - hash);
@@ -318,19 +240,16 @@
                 chatContainer.style.display = 'none';
                 usernameInput.focus();
             }
-            
-            // Initialize emoji picker
             initializeEmojiPicker();
         }
         
         function initializeEmojiPicker() {
-            // Initialize emoji grid
             emoteGrid.innerHTML = '';
             basicEmojis.forEach(emoji => {
                 const emoteElement = document.createElement('button');
                 emoteElement.className = 'emote-item';
-                emoteElement.textContent = emoji;
-                emoteElement.title = emoji;
+                emoteElement.innerHTML = twemoji.parse(emoji);
+                emoteElement.dataset.emoji = emoji;
                 emoteElement.addEventListener('click', () => {
                     insertEmoji(emoji);
                     hideEmotePicker();
@@ -338,7 +257,6 @@
                 emoteGrid.appendChild(emoteElement);
             });
             
-            // Initialize custom emotes grid
             customGrid.innerHTML = '';
             Object.keys(customEmotes).forEach(emoteName => {
                 const emoteElement = document.createElement('button');
@@ -351,7 +269,6 @@
                 customGrid.appendChild(emoteElement);
             });
             
-            // Initialize GIF emotes grid
             gifsGrid.innerHTML = '';
             Object.keys(gifEmotes).forEach(emoteName => {
                 const emoteElement = document.createElement('button');
@@ -364,7 +281,6 @@
                 gifsGrid.appendChild(emoteElement);
             });
             
-            // Setup tab switching
             document.querySelectorAll('.emote-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
                     switchEmoteTab(tab.dataset.tab);
@@ -374,13 +290,9 @@
         
         function switchEmoteTab(tabName) {
             currentTab = tabName;
-            
-            // Update tab buttons
             document.querySelectorAll('.emote-tab').forEach(tab => {
                 tab.classList.toggle('active', tab.dataset.tab === tabName);
             });
-            
-            // Show/hide content
             document.getElementById('emojiGrid').style.display = tabName === 'emoji' ? 'grid' : 'none';
             document.getElementById('customGrid').style.display = tabName === 'custom' ? 'grid' : 'none';
             document.getElementById('gifsGrid').style.display = tabName === 'gifs' ? 'grid' : 'none';
@@ -391,18 +303,14 @@
             const textBefore = messageInput.value.substring(0, cursorPos);
             const textAfter = messageInput.value.substring(cursorPos);
             
-            messageInput.value = textBefore + emoji + textAfter;
+            messageInput.value = textBefore + emoji + " " + textAfter;
             messageInput.focus();
-            messageInput.setSelectionRange(cursorPos + emoji.length, cursorPos + emoji.length);
+            const newCursorPos = cursorPos + emoji.length + 1;
+            messageInput.setSelectionRange(newCursorPos, newCursorPos);
         }
         
-        function showEmotePicker() {
-            emotePicker.classList.add('show');
-        }
-        
-        function hideEmotePicker() {
-            emotePicker.classList.remove('show');
-        }
+        function showEmotePicker() { emotePicker.classList.add('show'); }
+        function hideEmotePicker() { emotePicker.classList.remove('show'); }
         
         function setUsername() {
             const username = usernameInput.value.trim();
@@ -446,152 +354,112 @@
             cancelReplyFunc();
             stopTyping();
         }
-        
+
+        function escapeHtml(text) { 
+            const div = document.createElement('div'); 
+            div.textContent = text; 
+            return div.innerHTML; 
+        }
+
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
         function processEmotes(text) {
-            let processedText = text;
-            
-            // Process custom emotes
+            // 1. Escape the entire message first to prevent any XSS attacks.
+            let processedText = escapeHtml(text);
+
+            // 2. Replace custom emote codes with their image tags.
             Object.keys(customEmotes).forEach(emoteName => {
-                const regex = new RegExp(`:${emoteName}:`, 'g');
+                const regex = new RegExp(escapeRegex(`:${emoteName}:`), 'g');
                 processedText = processedText.replace(regex, 
                     `<img src="${customEmotes[emoteName]}" alt="${emoteName}" class="custom-emote" title="${emoteName}">`
                 );
             });
-            
-            // Process GIF emotes
+
+            // 3. Replace GIF emote codes with their image tags.
             Object.keys(gifEmotes).forEach(emoteName => {
-                const regex = new RegExp(`:${emoteName}:`, 'g');
+                const regex = new RegExp(escapeRegex(`:${emoteName}:`), 'g');
                 processedText = processedText.replace(regex, 
                     `<img src="${gifEmotes[emoteName]}" alt="${emoteName}" class="gif-emote" title="${emoteName}">`
                 );
             });
             
-            // Process common shortcodes for unicode emojis
-            const shortcodes = {
-                ':)': '🙂',
-                ':D': '😃',
-                ':(': '😞',
-                ':P': '😛',
-                ':p': '😛',
-                'xD': '😆',
-                '<3': '❤️',
-                ':o': '😮',
-                ':O': '😮',
-                ';)': '😉',
-                ':|': '😐',
-                ':/': '😕',
-                ':heart:': '❤️',
-                ':fire:': '🔥',
-                ':thumbsup:': '👍',
-                ':thumbsdown:': '👎',
-                ':100:': '💯'
-            };
-            
-            Object.keys(shortcodes).forEach(shortcode => {
-                const regex = new RegExp(escapeRegex(shortcode), 'g');
-                processedText = processedText.replace(regex, shortcodes[shortcode]);
+            // 4. Use Twemoji to parse all standard Unicode emojis and convert them to images.
+            // This ensures they render correctly everywhere and don't break the HTML.
+            return twemoji.parse(processedText, {
+                className: 'emote', // Use our custom class for styling
+                folder: 'svg',      // Use SVG for crisp, scalable emojis
+                ext: '.svg'
             });
-            
-            return processedText;
-        }
-        
-        function escapeRegex(string) {
-            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\        function processEmotes(text) {
-            // Simple emote replacement - you can expand this with custom emotes
-            return text; // For now, just return as is since emotes are already unicode
-        }');
         }
         
         // Event listeners
         setUsernameBtn.addEventListener('click', setUsername);
-        usernameInput.addEventListener('keypress', function(e) { 
-            if (e.key === 'Enter') setUsername(); 
-        });
-        messageForm.addEventListener('submit', function(e) { 
-            e.preventDefault(); 
-            sendMessage(); 
-        });
-        emoteBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            if (emotePicker.classList.contains('show')) {
-                hideEmotePicker();
-            } else {
-                showEmotePicker();
-            }
+        usernameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') setUsername(); });
+        messageForm.addEventListener('submit', (e) => { e.preventDefault(); sendMessage(); });
+        emoteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            emotePicker.classList.toggle('show');
         });
         cancelReply.addEventListener('click', cancelReplyFunc);
         
-        // Close emote picker when clicking outside
-        document.addEventListener('click', function(e) {
-            if (!messageForm.contains(e.target)) {
+        document.addEventListener('click', (e) => {
+            if (!emotePicker.contains(e.target) && e.target !== emoteBtn) {
                 hideEmotePicker();
             }
         });
         
-        let isTyping = false;
-        messageInput.addEventListener('input', function() {
+        messageInput.addEventListener('input', () => {
             if (!currentUser) return;
             if (!isTyping) { 
                 isTyping = true; 
                 socket.emit('typing', { isTyping: true }); 
             }
             clearTimeout(typingTimer);
-            typingTimer = setTimeout(stopTyping, 1000);
+            typingTimer = setTimeout(stopTyping, 1500);
         });
         
         function stopTyping() {
-            if (currentUser && isTyping) { isTyping = false; socket.emit('typing', { isTyping: false }); }
+            if (currentUser && isTyping) { 
+                isTyping = false; 
+                socket.emit('typing', { isTyping: false }); 
+            }
         }
         
         // Socket event listeners
-        socket.on('connect', function() { 
-            if (currentUser && currentChannel) joinChannel(); 
-        });
-        socket.on('disconnect', function() { 
-            addSystemMessage('Disconnected. Reconnecting...'); 
-        });
-        socket.on('connect_error', function() { 
-            showError('Connection failed. Please refresh.'); 
-        });
-        socket.on('joined-channel', function(data) { 
+        socket.on('connect', () => { if (currentUser && currentChannel) joinChannel(); });
+        socket.on('disconnect', () => { addSystemMessage('Disconnected. Reconnecting...'); });
+        socket.on('connect_error', () => { showError('Connection failed. Please refresh.'); });
+        socket.on('joined-channel', (data) => { 
             addSystemMessage('Welcome to #' + data.channel + '!'); 
             messageInput.focus(); 
         });
-        socket.on('channel-info', function(data) { 
-            updateChannelInfo(data); 
-        });
-        socket.on('user-joined', function(data) { 
+        socket.on('channel-info', (data) => { updateChannelInfo(data); });
+        socket.on('user-joined', (data) => { 
             addSystemMessage(data.username + ' joined'); 
             updateChannelInfo(data); 
         });
-        socket.on('user-left', function(data) { 
+        socket.on('user-left', (data) => { 
             addSystemMessage(data.username + ' left'); 
             updateChannelInfo(data); 
         });
-        socket.on('new-message', function(data) { 
-            addMessage(data); 
-        });
-        socket.on('user-typing', function(data) {
-            const typingUsers = Object.keys(data.typingUsers);
+        socket.on('new-message', (data) => { addMessage(data); });
+        socket.on('user-typing', (data) => {
+            const typingUsers = Object.keys(data.typingUsers).filter(u => u !== currentUser);
             if (typingUsers.length === 0) { 
                 typingIndicator.textContent = ''; 
-            }
-            else if (typingUsers.length === 1) { 
+            } else if (typingUsers.length === 1) { 
                 typingIndicator.textContent = typingUsers[0] + ' is typing...'; 
-            }
-            else { 
+            } else { 
                 typingIndicator.textContent = typingUsers.length + ' people are typing...'; 
             }
         });
-        socket.on('error', function(data) { 
-            showError(data.message); 
-        });
+        socket.on('error', (data) => { showError(data.message); });
         
         function showError(message) { 
-            errorContainer.innerHTML = '<div class="error">' + message + '</div>'; 
-            setTimeout(function() { 
-                errorContainer.innerHTML = ''; 
-            }, 5000); 
+            errorContainer.innerHTML = `<div class="error">${escapeHtml(message)}</div>`; 
+            setTimeout(() => { errorContainer.innerHTML = ''; }, 5000); 
         }
         
         function addMessage(data) {
@@ -604,30 +472,32 @@
             
             let messageHTML = '';
             
-            // Add reply indicator if this is a reply
             if (data.replyTo) {
                 const replyColor = getUserColor(data.replyTo.username);
-                messageHTML += '<div class="reply-indicator">@Replying to <span class="' + replyColor + '">' + escapeHtml(data.replyTo.username) + '</span></div>';
+                messageHTML += `<div class="reply-indicator">@Replying to <span class="${replyColor}">${escapeHtml(data.replyTo.username)}</span></div>`;
                 messageDiv.classList.add('reply');
             }
             
-            messageHTML += '<div class="message-header">' +
-                '<span class="message-username ' + userColor + '">' + escapeHtml(data.username) + '</span>' +
-                '<span class="message-time">' + time + '</span>' +
-                '</div>' +
-                '<div class="message-content">' + processEmotes(escapeHtml(data.message)) + '</div>';
+            // The processEmotes function now handles all escaping and conversions.
+            messageHTML += `<div class="message-header">
+                <span class="message-username ${userColor}">${escapeHtml(data.username)}</span>
+                <span class="message-time">${time}</span>
+                </div>
+                <div class="message-content">${processEmotes(data.message)}</div>`;
             
             messageDiv.innerHTML = messageHTML;
             
-            // Add click listener for replies (except for system messages and own messages)
             if (data.username !== currentUser) {
                 messageDiv.addEventListener('click', () => {
                     setReply(data.username, data.message);
                 });
             }
             
+            const wasScrolledToBottom = messages.scrollHeight - messages.clientHeight <= messages.scrollTop + 1;
             messages.appendChild(messageDiv);
-            scrollToBottom();
+            if (wasScrolledToBottom) {
+                scrollToBottom();
+            }
         }
         
         function addSystemMessage(message) {
@@ -640,13 +510,7 @@
         
         function updateChannelInfo(data) { 
             const count = data.userCount || 0; 
-            userCount.textContent = count + ' viewer' + (count !== 1 ? 's' : ''); 
-        }
-        
-        function escapeHtml(text) { 
-            const div = document.createElement('div'); 
-            div.textContent = text; 
-            return div.innerHTML; 
+            userCount.textContent = `${count} viewer${(count !== 1 ? 's' : '')}`; 
         }
         
         function scrollToBottom() { 
