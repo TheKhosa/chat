@@ -55,8 +55,44 @@ function getUserColor(username) {
 async function fetchEmotesFromAPI() {
   try {
     console.log('Fetching emotes from external API...');
-    const fetch = (await import('node-fetch')).default;
-    const response = await fetch('https://stream.0domain.click/emotes.json');
+    
+    // Try to use global fetch first (Node.js 18+)
+    let response;
+    if (typeof fetch !== 'undefined') {
+      response = await fetch('https://stream.0domain.click/emotes.json');
+    } else {
+      // Fallback to https module for older Node.js versions
+      const https = require('https');
+      const responseData = await new Promise((resolve, reject) => {
+        const req = https.get('https://stream.0domain.click/emotes.json', (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => {
+            try {
+              resolve(JSON.parse(data));
+            } catch (e) {
+              reject(e);
+            }
+          });
+        });
+        req.on('error', reject);
+        req.setTimeout(10000, () => {
+          req.destroy();
+          reject(new Error('Request timeout'));
+        });
+      });
+      
+      // Process the data directly for https fallback
+      console.log(`Loaded ${responseData.length} emotes from API`);
+      emotesCache.clear();
+      responseData.forEach(emote => {
+        if (emote.Name && emote.ImageUrl) {
+          emotesCache.set(emote.Name, emote.ImageUrl);
+        }
+      });
+      emotesLastFetch = Date.now();
+      return responseData;
+    }
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
