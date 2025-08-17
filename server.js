@@ -17,82 +17,59 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Store active users and channels in memory
+// In-memory data storage
 const channels = new Map();
-const users = new Map();
-
-// Serve the main chat page
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// API endpoint to get channel info
-app.get('/api/channels/:channelName', (req, res) => {
-  const channelName = req.params.channelName;
-  const channel = channels.get(channelName);
-  
-  if (channel) {
-    res.json({
-      name: channelName,
-      userCount: channel.users.size,
-      users: Array.from(channel.users.values()).map(user => user.username)
-    });
-  } else {
-    res.json({
-      name: channelName,
-      userCount: 0,
-      users: []
-    });
-  }
-});
+const users = new Map(); // Maps socket.id -> { username, channel }
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
-  // Handle user joining a channel
   socket.on('join-channel', ({ username, channel }) => {
     if (!username || !channel) {
-      socket.emit('error', { message: 'Username and channel are required' });
-      return;
+      return socket.emit('error', { message: 'Username and channel are required' });
     }
 
-    // Leave previous channel if any
-    if (users.has(socket.id)) {
-      const prevUser = users.get(socket.id);
-      leaveChannel(socket.id, prevUser.channel);
+    // Leave any previous channel
+    const previousUser = users.get(socket.id);
+    if (previousUser) {
+      leaveChannel(socket, previousUser.channel);
     }
-
-    // Join new channel
-    joinChannel(socket.id, username, channel);
     
-    // Send confirmation to user
-    socket.emit('joined-channel', { 
-      username, 
-      channel,
-      message: `Welcome to #${channel}!` 
+    // Create channel if it doesn't exist
+    if (!channels.has(channel)) {
+      channels.set(channel, { users: new Map(), typingUsers: new Map() });
+    }
+    const channelData = channels.get(channel);
+
+    // Add user to channel and user map
+    channelData.users.set(socket.id, { username });
+    users.set(socket.id, { username, channel });
+    socket.join(channel);
+
+    // Notify user they have joined
+    socket.emit('joined-channel', { username, channel });
+
+    // Notify everyone in the channel (including sender) about the current state
+    io.to(channel).emit('channel-info', {
+        channel,
+        userCount: channelData.users.size,
+        users: Array.from(channelData.users.values()).map(u => u.username)
     });
 
-    console.log(`${username} joined channel: ${channel}`);
+    // Notify others in the channel that a new user joined
+    socket.to(channel).emit('user-joined', { username, userCount: channelData.users.size });
+    
+    console.log(`${username} (${socket.id}) joined channel: ${channel}`);
   });
 
-  // Handle sending messages
   socket.on('send-message', ({ message }) => {
     const user = users.get(socket.id);
-    
-    if (!user) {
-      socket.emit('error', { message: 'You must join a channel first' });
+    if (!user || !message || message.trim() === '') {
       return;
     }
-
-    if (!message || message.trim() === '') {
-      socket.emit('error', { message: 'Message cannot be empty' });
-      return;
-    }
-
     const messageData = {
       id: Date.now().toString(),
       username: user.username,
@@ -100,99 +77,70 @@ io.on('connection', (socket) => {
       timestamp: new Date().toISOString(),
       channel: user.channel
     };
-
-    // Send message to all users in the channel
-    socket.to(user.channel).emit('new-message', messageData);
-    socket.emit('new-message', messageData);
+    
+    // FIX: Changed to io.to().emit() to send to everyone in the room (including sender) once.
+    io.to(user.channel).emit('new-message', messageData);
 
     console.log(`Message in #${user.channel} from ${user.username}: ${message}`);
   });
-
-  // Handle typing indicators
+  
   socket.on('typing', ({ isTyping }) => {
     const user = users.get(socket.id);
-    if (user) {
-      socket.to(user.channel).emit('user-typing', {
-        username: user.username,
-        isTyping
-      });
+    if (!user) return;
+    
+    const channelData = channels.get(user.channel);
+    if (!channelData) return;
+    
+    if (isTyping) {
+        channelData.typingUsers.set(user.username, Date.now());
+    } else {
+        channelData.typingUsers.delete(user.username);
     }
+    
+    // Broadcast the map of currently typing users
+    io.to(user.channel).emit('user-typing', { 
+      typingUsers: Object.fromEntries(channelData.typingUsers)
+    });
   });
 
-  // Handle disconnection
   socket.on('disconnect', () => {
     const user = users.get(socket.id);
     if (user) {
-      leaveChannel(socket.id, user.channel);
+      leaveChannel(socket, user.channel);
       console.log(`${user.username} disconnected from #${user.channel}`);
     }
     console.log('User disconnected:', socket.id);
   });
+});
 
-  // Helper function to join a channel
-  function joinChannel(socketId, username, channelName) {
-    // Create channel if it doesn't exist
-    if (!channels.has(channelName)) {
-      channels.set(channelName, {
-        name: channelName,
-        users: new Map(),
-        createdAt: new Date()
-      });
-    }
-
-    const channel = channels.get(channelName);
+function leaveChannel(socket, channelName) {
+    const user = users.get(socket.id);
+    const channelData = channels.get(channelName);
     
-    // Add user to channel
-    channel.users.set(socketId, { username, socketId });
-    users.set(socketId, { username, channel: channelName });
-    
-    // Join socket room
-    socket.join(channelName);
-    
-    // Notify other users in channel
-    socket.to(channelName).emit('user-joined', {
-      username,
-      message: `${username} joined the channel`,
-      userCount: channel.users.size,
-      users: Array.from(channel.users.values()).map(u => u.username)
-    });
+    if (!user || !channelData) return;
 
-    // Send current channel info to new user
-    socket.emit('channel-info', {
-      channel: channelName,
-      userCount: channel.users.size,
-      users: Array.from(channel.users.values()).map(u => u.username)
-    });
-  }
-
-  // Helper function to leave a channel
-  function leaveChannel(socketId, channelName) {
-    const user = users.get(socketId);
-    if (!user || !channels.has(channelName)) return;
-
-    const channel = channels.get(channelName);
-    channel.users.delete(socketId);
-    users.delete(socketId);
-    
     socket.leave(channelName);
-    
-    // Notify other users
-    if (channel.users.size > 0) {
-      socket.to(channelName).emit('user-left', {
+    channelData.users.delete(socket.id);
+    channelData.typingUsers.delete(user.username);
+    users.delete(socket.id);
+
+    if (channelData.users.size > 0) {
+      // Notify remaining users
+      io.to(channelName).emit('user-left', {
         username: user.username,
-        message: `${user.username} left the channel`,
-        userCount: channel.users.size,
-        users: Array.from(channel.users.values()).map(u => u.username)
+        userCount: channelData.users.size,
+      });
+      // Also update typing indicator in case the user was typing
+      io.to(channelName).emit('user-typing', {
+        typingUsers: Object.fromEntries(channelData.typingUsers)
       });
     } else {
       // Remove empty channel
       channels.delete(channelName);
+      console.log(`Channel #${channelName} is empty and has been removed.`);
     }
-  }
-});
+}
 
-// Start server
 server.listen(PORT, () => {
   console.log(`Chat server running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
