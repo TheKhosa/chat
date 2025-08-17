@@ -37,7 +37,15 @@
         .reply-indicator { background: rgba(192, 43, 43, 0.2); color: #ff8a8a; font-size: 10px; padding: 2px 6px; border-radius: 3px; margin-bottom: 4px; border-left: 2px solid #c02b2b; }
         .message-content { color: #e5e5e5; line-height: 1.4; }
         .typing-indicator { padding: 6px 16px; font-style: italic; color: #8a8a8a; font-size: 11px; min-height: 24px; background: #0f0f0f; border-top: 1px solid #2c2c2c; }
-        .message-form { display: flex; padding: 8px; background: #0f0f0f; border-top: 1px solid #2c2c2c; gap: 8px; flex-direction: column; }
+        .message-form { 
+            display: flex; 
+            padding: 8px; 
+            background: #0f0f0f; 
+            border-top: 1px solid #2c2c2c; 
+            gap: 8px; 
+            flex-direction: column; 
+            position: relative; /* <-- FIX: This is the crucial fix. It anchors the absolute-positioned emote picker. */
+        }
         .reply-preview { background: rgba(192, 43, 43, 0.1); border-left: 3px solid #c02b2b; padding: 6px 8px; font-size: 11px; color: #ccc; margin-bottom: 8px; border-radius: 3px; display: none; position: relative; }
         .reply-preview .cancel-reply { position: absolute; top: 4px; right: 6px; background: none; border: none; color: #999; cursor: pointer; font-size: 14px; padding: 0; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; }
         .reply-preview .cancel-reply:hover { color: #fff; }
@@ -48,7 +56,7 @@
         .emote-btn:hover { background: #3c3c3c; }
         .send-btn { background: #c02b2b; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; transition: background 0.2s; font-size: 12px; }
         .send-btn:hover { background: #e04141; }
-        .emote-picker { position: absolute; bottom: 100%; right: 0; background: #0f0f0f; border: 1px solid #2c2c2c; border-radius: 6px; display: none; z-index: 1000; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); width: 320px; max-height: 300px; overflow-y: auto; }
+        .emote-picker { position: absolute; bottom: 100%; right: 8px; /* Adjusted right positioning to align better */ background: #0f0f0f; border: 1px solid #2c2c2c; border-radius: 6px; display: none; z-index: 1000; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); width: 320px; max-height: 300px; overflow-y: auto; margin-bottom: 8px; /* Added margin */ }
         .emote-picker.show { display: block; }
         .emote-tabs { display: flex; border-bottom: 1px solid #2c2c2c; background: #0a0a0a; }
         .emote-tab { flex: 1; padding: 8px 12px; background: none; border: none; color: #8a8a8a; cursor: pointer; font-size: 11px; transition: all 0.2s; }
