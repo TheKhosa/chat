@@ -6,266 +6,65 @@
     <title>Stream Chat</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: #1a1a1a;
-            color: #e5e5e5;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .container {
-            width: 100%;
-            height: 100vh;
-            background: #1a1a1a;
-            display: flex;
-            flex-direction: column;
-            border: none;
-        }
-
-        .header {
-            background: #0a0a0a;
-            color: #e5e5e5;
-            padding: 12px 16px;
-            border-bottom: 1px solid #2c2c2c;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            min-height: 50px;
-        }
-
-        .header h1 {
-            font-size: 1rem;
-            font-weight: 600;
-            color: #e5e5e5;
-        }
-
-        .channel-info {
-            background: #0f0f0f;
-            padding: 8px 16px;
-            border-bottom: 1px solid #2c2c2c;
-            font-size: 12px;
-            color: #8a8a8a;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        /* --- FIX: This is the username setup form the JavaScript expects --- */
-        .username-setup {
-            background: #0f0f0f;
-            padding: 12px 16px;
-            border-bottom: 1px solid #2c2c2c;
-            display: none; /* Initially hidden, shown by JS */
-        }
-
-        .username-setup.show {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .username-setup input {
-            flex: 1;
-            padding: 6px 8px;
-            border: 1px solid #2c2c2c;
-            border-radius: 4px;
-            background: #1a1a1a;
-            color: #e5e5e5;
-            font-size: 12px;
-        }
-
-        .username-setup input:focus {
-            outline: none;
-            border-color: #c02b2b;
-        }
-
-        .username-setup button {
-            background: #c02b2b;
-            color: white;
-            padding: 6px 12px;
-            border: none;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .username-setup button:hover {
-            background: #e04141;
-        }
-
-        .chat-container {
-            display: flex;
-            flex: 1;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 8px;
-            background: #1a1a1a;
-            scrollbar-width: thin;
-            scrollbar-color: #2c2c2c #1a1a1a;
-        }
-
-        .messages::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .messages::-webkit-scrollbar-track {
-            background: #1a1a1a;
-        }
-
-        .messages::-webkit-scrollbar-thumb {
-            background: #2c2c2c;
-            border-radius: 3px;
-        }
-
-        .message {
-            margin-bottom: 8px;
-            padding: 6px 8px;
-            border-radius: 4px;
-            background: rgba(255, 255, 255, 0.03);
-            font-size: 13px;
-            line-height: 1.4;
-            word-wrap: break-word;
-        }
-
-        .message.system {
-            background: rgba(192, 43, 43, 0.1);
-            color: #ff6b6b;
-            font-style: italic;
-            text-align: center;
-            font-size: 12px;
-        }
-
-        .message-header {
-            font-weight: 600;
-            color: #c02b2b;
-            margin-bottom: 2px;
-            font-size: 12px;
-        }
-
-        .message-time {
-            font-size: 10px;
-            color: #666;
-            margin-left: 6px;
-        }
-
-        .message-content {
-            color: #e5e5e5;
-            line-height: 1.4;
-        }
-
-        .typing-indicator {
-            padding: 6px 16px;
-            font-style: italic;
-            color: #8a8a8a;
-            font-size: 11px;
-            min-height: 24px;
-            background: #0f0f0f;
-            border-top: 1px solid #2c2c2c;
-        }
-
-        .message-form {
-            display: flex;
-            padding: 8px;
-            background: #0f0f0f;
-            border-top: 1px solid #2c2c2c;
-            gap: 8px;
-        }
-
-        .message-input {
-            flex: 1;
-            padding: 8px;
-            border: 1px solid #2c2c2c;
-            border-radius: 4px;
-            font-size: 13px;
-            background: #1a1a1a;
-            color: #e5e5e5;
-        }
-
-        .message-input:focus {
-            outline: none;
-            border-color: #c02b2b;
-        }
-
-        .send-btn {
-            background: #c02b2b;
-            color: white;
-            padding: 8px 12px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background 0.2s;
-            font-size: 12px;
-        }
-
-        .send-btn:hover {
-            background: #e04141;
-        }
-
-        .error {
-            color: #ff6b6b;
-            background: rgba(255, 107, 107, 0.1);
-            padding: 8px;
-            border-radius: 4px;
-            margin: 8px;
-            text-align: center;
-            font-size: 12px;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #1a1a1a; color: #e5e5e5; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        .container { width: 100%; height: 100vh; background: #1a1a1a; display: flex; flex-direction: column; border: none; }
+        .header { background: #0a0a0a; color: #e5e5e5; padding: 12px 16px; border-bottom: 1px solid #2c2c2c; display: flex; align-items: center; justify-content: space-between; min-height: 50px; }
+        .header h1 { font-size: 1rem; font-weight: 600; color: #e5e5e5; }
+        .channel-info { background: #0f0f0f; padding: 8px 16px; border-bottom: 1px solid #2c2c2c; font-size: 12px; color: #8a8a8a; display: flex; justify-content: space-between; align-items: center; }
+        .username-setup { background: #0f0f0f; padding: 12px 16px; border-bottom: 1px solid #2c2c2c; display: none; }
+        .username-setup.show { display: flex; align-items: center; gap: 8px; }
+        .username-setup input { flex: 1; padding: 6px 8px; border: 1px solid #2c2c2c; border-radius: 4px; background: #1a1a1a; color: #e5e5e5; font-size: 12px; }
+        .username-setup input:focus { outline: none; border-color: #c02b2b; }
+        .username-setup button { background: #c02b2b; color: white; padding: 6px 12px; border: none; border-radius: 4px; font-size: 12px; cursor: pointer; transition: background 0.2s; }
+        .username-setup button:hover { background: #e04141; }
+        .chat-container { display: flex; flex: 1; flex-direction: column; overflow: hidden; }
+        .messages { flex: 1; overflow-y: auto; padding: 8px; background: #1a1a1a; scrollbar-width: thin; scrollbar-color: #2c2c2c #1a1a1a; }
+        .messages::-webkit-scrollbar { width: 6px; }
+        .messages::-webkit-scrollbar-track { background: #1a1a1a; }
+        .messages::-webkit-scrollbar-thumb { background: #2c2c2c; border-radius: 3px; }
+        .message { margin-bottom: 8px; padding: 6px 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.03); font-size: 13px; line-height: 1.4; word-wrap: break-word; }
+        .message.system { background: rgba(192, 43, 43, 0.1); color: #ff6b6b; font-style: italic; text-align: center; font-size: 12px; }
+        .message-header { font-weight: 600; color: #c02b2b; margin-bottom: 2px; font-size: 12px; }
+        .message-time { font-size: 10px; color: #666; margin-left: 6px; }
+        .message-content { color: #e5e5e5; line-height: 1.4; }
+        .typing-indicator { padding: 6px 16px; font-style: italic; color: #8a8a8a; font-size: 11px; min-height: 24px; background: #0f0f0f; border-top: 1px solid #2c2c2c; }
+        .message-form { display: flex; padding: 8px; background: #0f0f0f; border-top: 1px solid #2c2c2c; gap: 8px; }
+        .message-input { flex: 1; padding: 8px; border: 1px solid #2c2c2c; border-radius: 4px; font-size: 13px; background: #1a1a1a; color: #e5e5e5; }
+        .message-input:focus { outline: none; border-color: #c02b2b; }
+        .send-btn { background: #c02b2b; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; transition: background 0.2s; font-size: 12px; }
+        .send-btn:hover { background: #e04141; }
+        .error { color: #ff6b6b; background: rgba(255, 107, 107, 0.1); padding: 8px; border-radius: 4px; margin: 8px; text-align: center; font-size: 12px; }
+        body::-webkit-scrollbar { display: none; }
+        body { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>💬 Real-time Chat</h1>
-        </div>
-        
-        <!-- FIX: This is the correct div structure for the username input that the JS expects -->
+        <div class="header"><h1>💬 Real-time Chat</h1></div>
         <div id="usernameSetup" class="username-setup">
             <input type="text" id="usernameInput" placeholder="Enter your username..." maxlength="20">
             <button id="setUsernameBtn">Set Username</button>
         </div>
-
-        <!-- FIX: Added the missing error container div -->
         <div id="errorContainer"></div>
-
-        <!-- Chat Interface (initially hidden by JS if no username is set) -->
         <div id="chatContainer" class="chat-container" style="display: none;">
             <div class="channel-info">
                 <div id="channelName"></div>
                 <div id="userCount"></div>
             </div>
-            
             <div id="messages" class="messages"></div>
             <div id="typingIndicator" class="typing-indicator"></div>
-            
             <form id="messageForm" class="message-form">
                 <input type="text" id="messageInput" class="message-input" placeholder="Type your message..." maxlength="500" required>
                 <button type="submit" class="send-btn">Send</button>
             </form>
         </div>
     </div>
-
     <script>
         const socket = io();
         let currentUser = null;
         let currentChannel = null;
         let typingTimer = null;
-
-        // DOM elements
         const channelName = document.getElementById('channelName');
         const userCount = document.getElementById('userCount');
         const usernameSetup = document.getElementById('usernameSetup');
@@ -277,30 +76,27 @@
         const messageInput = document.getElementById('messageInput');
         const typingIndicator = document.getElementById('typingIndicator');
         const errorContainer = document.getElementById('errorContainer');
-
-        // Generate random username
         function generateRandomUsername() {
-            const adjectives = ['Happy', 'Cool', 'Swift', 'Bright', 'Silent', 'Bold', 'Quick', 'Smart', 'Wild', 'Free'];
-            const nouns = ['Viewer', 'User', 'Guest', 'Watcher', 'Fan', 'Friend', 'Player', 'Star', 'Hero', 'Champion'];
+            const adjectives = ['Happy', 'Cool', 'Swift', 'Bright', 'Silent', 'Bold'];
+            const nouns = ['Viewer', 'User', 'Guest', 'Watcher', 'Fan', 'Friend'];
             const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
             const noun = nouns[Math.floor(Math.random() * nouns.length)];
             const number = Math.floor(Math.random() * 999) + 1;
             return `${adj}${noun}${number}`;
         }
-
-        // Parse URL parameters to get channel and optional username
         function initializeFromURL() {
             const urlParams = new URLSearchParams(window.location.search);
             currentChannel = urlParams.get('channel') || urlParams.get('stream') || 'general';
-            const providedUsername = urlParams.get('username') || urlParams.get('user');
+            
+            // --- MODIFIED LINE ---
+            // Now accepts 'username', 'user', or 'nick' as the parameter for the username.
+            const providedUsername = urlParams.get('username') || urlParams.get('user') || urlParams.get('nick');
             
             channelName.textContent = `#${currentChannel}`;
-            
             if (providedUsername && providedUsername.trim().length >= 2) {
                 currentUser = providedUsername.trim();
                 usernameSetup.classList.remove('show');
                 chatContainer.style.display = 'flex';
-                
                 if (socket.connected) {
                     joinChannel();
                 }
@@ -311,152 +107,64 @@
                 usernameInput.focus();
             }
         }
-
-        // Set username and join channel
         function setUsername() {
             const username = usernameInput.value.trim();
-            if (!username || username.length < 2) {
-                showError('Username must be at least 2 characters');
-                return;
-            }
-            if (username.length > 20) {
-                showError('Username is too long (max 20 characters)');
-                return;
-            }
+            if (!username || username.length < 2) { showError('Username must be at least 2 characters'); return; }
+            if (username.length > 20) { showError('Username is too long (max 20 characters)'); return; }
             currentUser = username;
             usernameSetup.classList.remove('show');
             chatContainer.style.display = 'flex';
             joinChannel();
         }
-
-        // Join the channel
         function joinChannel() {
-            if (!currentUser || !currentChannel) return;
-            if (!socket.connected) return;
-            
-            socket.emit('join-channel', { 
-                username: currentUser, 
-                channel: currentChannel 
-            });
+            if (!currentUser || !currentChannel || !socket.connected) return;
+            socket.emit('join-channel', { username: currentUser, channel: currentChannel });
         }
-        
         function sendMessage() {
             const message = messageInput.value.trim();
             if (!message || !currentUser) return;
-            if (!socket.connected) {
-                showError('Not connected to chat server');
-                return;
-            }
+            if (!socket.connected) { showError('Not connected to chat server'); return; }
             socket.emit('send-message', { message });
             messageInput.value = '';
             stopTyping();
         }
-
-        // --- Event Listeners Setup ---
         setUsernameBtn.addEventListener('click', setUsername);
-        usernameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') setUsername();
-        });
-        
-        // FIX: Simplified to a single submit event for sending messages
-        messageForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            sendMessage();
-        });
-
-        // Typing indicator
+        usernameInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') setUsername(); });
+        messageForm.addEventListener('submit', (e) => { e.preventDefault(); sendMessage(); });
         let isTyping = false;
         messageInput.addEventListener('input', () => {
             if (!currentUser) return;
-            if (!isTyping) {
-                isTyping = true;
-                socket.emit('typing', { isTyping: true });
-            }
+            if (!isTyping) { isTyping = true; socket.emit('typing', { isTyping: true }); }
             clearTimeout(typingTimer);
             typingTimer = setTimeout(stopTyping, 1000);
         });
-
         function stopTyping() {
-            if (currentUser && isTyping) {
-                isTyping = false;
-                socket.emit('typing', { isTyping: false });
-            }
+            if (currentUser && isTyping) { isTyping = false; socket.emit('typing', { isTyping: false }); }
         }
-
-        // --- Socket.IO Event Handlers ---
-        socket.on('connect', () => {
-            console.log('Connected to server:', socket.id);
-            if (currentUser && currentChannel) {
-                joinChannel();
-            }
-        });
-
-        socket.on('disconnect', () => {
-            addSystemMessage('Disconnected from server. Attempting to reconnect...');
-        });
-
-        socket.on('connect_error', (error) => {
-            showError('Connection failed. Please refresh the page.');
-        });
-
-        socket.on('joined-channel', (data) => {
-            addSystemMessage(`Welcome to #${data.channel}!`);
-            messageInput.focus();
-        });
-
-        socket.on('channel-info', (data) => {
-            updateChannelInfo(data);
-        });
-
-        socket.on('user-joined', (data) => {
-            addSystemMessage(`${data.username} joined the chat`);
-            updateChannelInfo(data);
-        });
-
-        socket.on('user-left', (data) => {
-            addSystemMessage(`${data.username} left the chat`);
-            updateChannelInfo(data);
-        });
-
-        socket.on('new-message', (data) => {
-            addMessage(data);
-        });
-
+        socket.on('connect', () => { if (currentUser && currentChannel) joinChannel(); });
+        socket.on('disconnect', () => addSystemMessage('Disconnected. Reconnecting...'));
+        socket.on('connect_error', () => showError('Connection failed. Please refresh.'));
+        socket.on('joined-channel', (data) => { addSystemMessage(`Welcome to #${data.channel}!`); messageInput.focus(); });
+        socket.on('channel-info', (data) => updateChannelInfo(data));
+        socket.on('user-joined', (data) => { addSystemMessage(`${data.username} joined`); updateChannelInfo(data); });
+        socket.on('user-left', (data) => { addSystemMessage(`${data.username} left`); updateChannelInfo(data); });
+        socket.on('new-message', (data) => addMessage(data));
         socket.on('user-typing', (data) => {
             const typingUsers = Object.keys(data.typingUsers);
-            if (typingUsers.length === 0) {
-                typingIndicator.textContent = '';
-            } else if (typingUsers.length === 1) {
-                typingIndicator.textContent = `${typingUsers[0]} is typing...`;
-            } else {
-                 typingIndicator.textContent = `${typingUsers.length} people are typing...`;
-            }
+            if (typingUsers.length === 0) { typingIndicator.textContent = ''; }
+            else if (typingUsers.length === 1) { typingIndicator.textContent = `${typingUsers[0]} is typing...`; }
+            else { typingIndicator.textContent = `${typingUsers.length} people are typing...`; }
         });
-
-        socket.on('error', (data) => {
-            showError(data.message);
-        });
-
-        // --- Helper Functions ---
-        function showError(message) {
-            errorContainer.innerHTML = `<div class="error">${message}</div>`;
-            setTimeout(() => { errorContainer.innerHTML = ''; }, 5000);
-        }
-
+        socket.on('error', (data) => showError(data.message));
+        function showError(message) { errorContainer.innerHTML = `<div class="error">${message}</div>`; setTimeout(() => { errorContainer.innerHTML = ''; }, 5000); }
         function addMessage(data) {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message';
             const time = new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            messageDiv.innerHTML = `
-                <div class="message-header">
-                    ${escapeHtml(data.username)}
-                    <span class="message-time">${time}</span>
-                </div>
-                <div class="message-content">${escapeHtml(data.message)}</div>`;
+            messageDiv.innerHTML = `<div class="message-header">${escapeHtml(data.username)}<span class="message-time">${time}</span></div><div class="message-content">${escapeHtml(data.message)}</div>`;
             messages.appendChild(messageDiv);
             scrollToBottom();
         }
-
         function addSystemMessage(message) {
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message system';
@@ -464,32 +172,12 @@
             messages.appendChild(messageDiv);
             scrollToBottom();
         }
-        
-        function updateChannelInfo(data) {
-            const count = data.userCount || 0;
-            userCount.textContent = `${count} viewer${count !== 1 ? 's' : ''}`;
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function scrollToBottom() {
-            messages.scrollTop = messages.scrollHeight;
-        }
-        
-        // Initialize the chat when the page loads
+        function updateChannelInfo(data) { const count = data.userCount || 0; userCount.textContent = `${count} viewer${count !== 1 ? 's' : ''}`; }
+        function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+        function scrollToBottom() { messages.scrollTop = messages.scrollHeight; }
         document.addEventListener('DOMContentLoaded', () => {
-            try {
-                // FIX: Removed call to non-existent function
-                initializeFromURL();
-                addSystemMessage('Chat widget loaded. Connecting to server...');
-            } catch (error) {
-                console.error('Error during initialization:', error);
-                showError('Failed to initialize chat');
-            }
+            try { initializeFromURL(); addSystemMessage('Connecting to chat...'); }
+            catch (error) { console.error('Initialization Error:', error); showError('Failed to initialize chat'); }
         });
     </script>
 </body>
