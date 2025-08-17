@@ -44,7 +44,7 @@
             border-top: 1px solid #2c2c2c; 
             gap: 8px; 
             flex-direction: column; 
-            position: relative; /* <-- FIX: This is the crucial fix. It anchors the absolute-positioned emote picker. */
+            position: relative; /* This anchors the absolute-positioned emote picker. */
         }
         .reply-preview { background: rgba(192, 43, 43, 0.1); border-left: 3px solid #c02b2b; padding: 6px 8px; font-size: 11px; color: #ccc; margin-bottom: 8px; border-radius: 3px; display: none; position: relative; }
         .reply-preview .cancel-reply { position: absolute; top: 4px; right: 6px; background: none; border: none; color: #999; cursor: pointer; font-size: 14px; padding: 0; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; }
@@ -56,7 +56,7 @@
         .emote-btn:hover { background: #3c3c3c; }
         .send-btn { background: #c02b2b; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; transition: background 0.2s; font-size: 12px; }
         .send-btn:hover { background: #e04141; }
-        .emote-picker { position: absolute; bottom: 100%; right: 8px; /* Adjusted right positioning to align better */ background: #0f0f0f; border: 1px solid #2c2c2c; border-radius: 6px; display: none; z-index: 1000; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); width: 320px; max-height: 300px; overflow-y: auto; margin-bottom: 8px; /* Added margin */ }
+        .emote-picker { position: absolute; bottom: 100%; right: 8px; background: #0f0f0f; border: 1px solid #2c2c2c; border-radius: 6px; display: none; z-index: 1000; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); width: 320px; max-height: 300px; overflow-y: auto; margin-bottom: 8px; }
         .emote-picker.show { display: block; }
         .emote-tabs { display: flex; border-bottom: 1px solid #2c2c2c; background: #0a0a0a; }
         .emote-tab { flex: 1; padding: 8px 12px; background: none; border: none; color: #8a8a8a; cursor: pointer; font-size: 11px; transition: all 0.2s; }
@@ -75,23 +75,9 @@
         .user-red { color: #ff6b6b !important; } .user-orange { color: #ffa726 !important; } .user-yellow { color: #ffeb3b !important; } .user-green { color: #66bb6a !important; } .user-blue { color: #42a5f5 !important; } .user-purple { color: #ab47bc !important; } .user-pink { color: #ec407a !important; } .user-cyan { color: #26c6da !important; } .user-lime { color: #9ccc65 !important; } .user-indigo { color: #5c6bc0 !important; } .user-teal { color: #26a69a !important; } .user-amber { color: #ffca28 !important; }
         
         /* Emote styling in messages */
-        /* This class is now used by Twemoji's output */
-        .emote {
-            height: 1.5em;
-            width: 1.5em;
-            vertical-align: middle;
-            margin: 0 2px;
-        }
-        .custom-emote {
-            height: 24px;
-            vertical-align: middle;
-            margin: 0 2px;
-        }
-        .gif-emote {
-            height: 32px;
-            vertical-align: middle;
-            margin: 0 2px;
-        }
+        .emote { height: 1.5em; width: 1.5em; vertical-align: middle; margin: 0 2px; }
+        .custom-emote { height: 24px; vertical-align: middle; margin: 0 2px; }
+        .gif-emote { height: 32px; vertical-align: middle; margin: 0 2px; }
     </style>
 </head>
 <body>
@@ -162,21 +148,41 @@
         var replyContent = document.getElementById('replyContent');
         var cancelReply = document.getElementById('cancelReply');
         
-        // Custom emotes and GIFs configuration
+        // --- NEW EXPANDED EMOTE LISTS ---
         var customEmotes = {
+            // Twitch Global
             'Kappa': 'https://static-cdn.jtvnw.net/emoticons/v2/25/default/dark/1.0',
             'PogChamp': 'https://static-cdn.jtvnw.net/emoticons/v2/88/default/dark/1.0',
-            'KEKW': 'https://cdn.7tv.app/emote/60a57218eca3e55c5e6e9cd3/1x.webp',
             'LUL': 'https://static-cdn.jtvnw.net/emoticons/v2/425618/default/dark/1.0',
+            // 7TV
+            'KEKW': 'https://cdn.7tv.app/emote/60a57218eca3e55c5e6e9cd3/1x.webp',
             'MonkaS': 'https://cdn.7tv.app/emote/60a57218eca3e55c5e6e9cd0/1x.webp',
-            'EZ': 'https://cdn.7tv.app/emote/60a5722dec18e05c5e6e9cdf/1x.webp'
+            'EZ': 'https://cdn.7tv.app/emote/60a5722dec18e05c5e6e9cdf/1x.webp',
+            // BTTV
+            'PepeHands': 'https://cdn.betterttv.net/emote/555c276900e1233534a26d93/1x',
+            'monkaW': 'https://cdn.betterttv.net/emote/59e599f5c324866810237894/1x',
+            'Pepega': 'https://cdn.betterttv.net/emote/5aca62163934094b325447a1/1x',
+            'FeelsOkayMan': 'https://cdn.betterttv.net/emote/566c9fde65dbbdab32ec053b/1x',
+            'AYAYA': 'https://cdn.betterttv.net/emote/584953a152642a47394208a3/1x',
+            'Sadge': 'https://cdn.betterttv.net/emote/5e0fa9d40550d42106b8a489/1x',
+            'Clap': 'https://cdn.betterttv.net/emote/55b63e6e60b0ff21245551b9/1x',
+            'POGGERS': 'https://cdn.betterttv.net/emote/58246e727e41c47053b34b3e/1x',
+            // FFZ
+            'Okayge': 'https://cdn.frankerfacez.com/emote/426871/1',
+            'Copium': 'https://cdn.frankerfacez.com/emote/560244/1'
         };
         
         var gifEmotes = {
+            // 7TV
             'PepeParty': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4862/1x.gif',
             'CatJAM': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4851/1x.gif',
             'EzDance': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f485f/1x.gif',
-            'PartyParrot': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4865/1x.gif'
+            'PartyParrot': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4865/1x.gif',
+            // BTTV
+            'pepeD': 'https://cdn.betterttv.net/emote/5b159678a1127041537e2894/1x',
+            'HYPERS': 'https://cdn.betterttv.net/emote/559286d95856c116499388df/1x',
+            'gachiHYPER': 'https://cdn.betterttv.net/emote/59143b49749a4f245f7de27b/1x',
+            'VIBE': 'https://cdn.betterttv.net/emote/5a31f90b4d29314285807903/1x'
         };
         
         // Basic emoji collection
@@ -374,10 +380,8 @@
         }
 
         function processEmotes(text) {
-            // 1. Escape the entire message first to prevent any XSS attacks.
             let processedText = escapeHtml(text);
 
-            // 2. Replace custom emote codes with their image tags.
             Object.keys(customEmotes).forEach(emoteName => {
                 const regex = new RegExp(escapeRegex(`:${emoteName}:`), 'g');
                 processedText = processedText.replace(regex, 
@@ -385,7 +389,6 @@
                 );
             });
 
-            // 3. Replace GIF emote codes with their image tags.
             Object.keys(gifEmotes).forEach(emoteName => {
                 const regex = new RegExp(escapeRegex(`:${emoteName}:`), 'g');
                 processedText = processedText.replace(regex, 
@@ -393,12 +396,8 @@
                 );
             });
             
-            // 4. Use Twemoji to parse all standard Unicode emojis and convert them to images.
-            // This ensures they render correctly everywhere and don't break the HTML.
             return twemoji.parse(processedText, {
-                className: 'emote', // Use our custom class for styling
-                folder: 'svg',      // Use SVG for crisp, scalable emojis
-                ext: '.svg'
+                className: 'emote', folder: 'svg', ext: '.svg'
             });
         }
         
@@ -486,7 +485,6 @@
                 messageDiv.classList.add('reply');
             }
             
-            // The processEmotes function now handles all escaping and conversions.
             messageHTML += `<div class="message-header">
                 <span class="message-username ${userColor}">${escapeHtml(data.username)}</span>
                 <span class="message-time">${time}</span>
