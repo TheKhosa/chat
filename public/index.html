@@ -206,7 +206,7 @@
         async function loadCustomEmotes() {
             try {
                 console.log('Loading emotes from API...');
-                const response = await fetch('http://stream.0domain.click/emotes.json');
+                const response = await fetch('https://stream.0domain.click/emotes.json');
                 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
