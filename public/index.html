@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stream Chat</title>
     <script src="/socket.io/socket.io.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@emoji-mart/data@latest/dist/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@emoji-mart/browser@latest/dist/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/emoji-js@8.0.0/lib/emoji.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #1a1a1a; color: #e5e5e5; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -58,18 +57,72 @@
             display: none; 
             z-index: 1000; 
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            width: 320px;
+            max-height: 300px;
+            overflow-y: auto;
         }
         .emote-picker.show { display: block; }
         
-        /* Custom emote picker styling */
-        em-emoji-picker {
-            --rgb-background: 15, 15, 15;
-            --rgb-input: 26, 26, 26;
-            --rgb-color: 229, 229, 229;
-            --rgb-accent: 192, 43, 43;
-            --rgb-border: 44, 44, 44;
-            --border-radius: 6px;
-            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        .emote-tabs {
+            display: flex;
+            border-bottom: 1px solid #2c2c2c;
+            background: #0a0a0a;
+        }
+        
+        .emote-tab {
+            flex: 1;
+            padding: 8px 12px;
+            background: none;
+            border: none;
+            color: #8a8a8a;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+        
+        .emote-tab.active {
+            color: #c02b2b;
+            background: #1a1a1a;
+        }
+        
+        .emote-tab:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .emote-content {
+            padding: 8px;
+            max-height: 240px;
+            overflow-y: auto;
+        }
+        
+        .emote-grid { 
+            display: grid; 
+            grid-template-columns: repeat(8, 1fr); 
+            gap: 4px; 
+        }
+        
+        .emote-item { 
+            background: none; 
+            border: none; 
+            padding: 6px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 18px; 
+            transition: background 0.2s; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            min-height: 32px;
+        }
+        
+        .emote-item:hover { 
+            background: rgba(255, 255, 255, 0.1); 
+        }
+        
+        .emote-item img {
+            width: 24px;
+            height: 24px;
+            object-fit: contain;
         }
         .error { color: #ff6b6b; background: rgba(255, 107, 107, 0.1); padding: 8px; border-radius: 4px; margin: 8px; text-align: center; font-size: 12px; }
         body::-webkit-scrollbar { display: none; }
@@ -135,7 +188,16 @@
                     <button type="submit" class="send-btn">Send</button>
                 </div>
                 <div id="emotePicker" class="emote-picker">
-                    <!-- Emoji Mart picker will be inserted here -->
+                    <div class="emote-tabs">
+                        <button class="emote-tab active" data-tab="emoji">😀 Emoji</button>
+                        <button class="emote-tab" data-tab="custom">🎮 Custom</button>
+                        <button class="emote-tab" data-tab="gifs">🎬 GIFs</button>
+                    </div>
+                    <div class="emote-content">
+                        <div id="emojiGrid" class="emote-grid"></div>
+                        <div id="customGrid" class="emote-grid" style="display: none;"></div>
+                        <div id="gifsGrid" class="emote-grid" style="display: none;"></div>
+                    </div>
                 </div>
             </form>
         </div>
@@ -162,14 +224,15 @@
         const errorContainer = document.getElementById('errorContainer');
         const emoteBtn = document.getElementById('emoteBtn');
         const emotePicker = document.getElementById('emotePicker');
-        const emoteGrid = document.getElementById('emoteGrid');
+        const emoteGrid = document.getElementById('emojiGrid');
+        const customGrid = document.getElementById('customGrid');
+        const gifsGrid = document.getElementById('gifsGrid');
         const replyPreview = document.getElementById('replyPreview');
         const replyContent = document.getElementById('replyContent');
         const cancelReply = document.getElementById('cancelReply');
         
         // Custom emotes and GIFs configuration
         const customEmotes = {
-            // Twitch-style custom emotes (you can add your own)
             'Kappa': 'https://static-cdn.jtvnw.net/emoticons/v2/25/default/dark/1.0',
             'PogChamp': 'https://static-cdn.jtvnw.net/emoticons/v2/88/default/dark/1.0',
             'KEKW': 'https://cdn.7tv.app/emote/60a57218eca3e55c5e6e9cd3/1x.webp',
@@ -179,14 +242,33 @@
         };
         
         const gifEmotes = {
-            // Popular GIF emotes
             'PepeParty': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4862/1x.gif',
             'CatJAM': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4851/1x.gif',
             'EzDance': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f485f/1x.gif',
             'PartyParrot': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4865/1x.gif',
         };
         
-        let emojiPicker = null;
+        // Basic emoji collection
+        const basicEmojis = [
+            '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃',
+            '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '☺️', '😚',
+            '😙', '🥲', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭',
+            '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄',
+            '😬', '🤥', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢',
+            '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '🥸',
+            '😎', '🤓', '🧐', '😕', '😟', '🙁', '☹️', '😮', '😯', '😲',
+            '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱',
+            '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠',
+            '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👹', '👺', '👻',
+            '👽', '👾', '🤖', '🎃', '❤️', '🧡', '💛', '💚', '💙', '💜',
+            '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖',
+            '💘', '💝', '💟', '👍', '👎', '👌', '🤏', '✌️', '🤞', '🤟',
+            '🤘', '🤙', '👈', '👉', '👆', '👇', '☝️', '👋', '🤚', '🖐️',
+            '✋', '🖖', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💪',
+            '🔥', '💯', '💎', '⚡', '🌟', '✨', '🎉', '🎊', '🏆', '🎯'
+        ];
+        
+        let currentTab = 'emoji';
         
         // User color classes
         const colorClasses = [
@@ -240,87 +322,67 @@
             initializeEmojiPicker();
         }
         
-        async function initializeEmojiPicker() {
-            try {
-                // Wait for Emoji Mart to load
-                if (typeof EmojiMart === 'undefined') {
-                    setTimeout(initializeEmojiPicker, 100);
-                    return;
-                }
-                
-                // Create emoji picker with custom configuration
-                emojiPicker = new EmojiMart.Picker({
-                    data: EmojiMart.data,
-                    theme: 'dark',
-                    set: 'twitter',
-                    showPreview: false,
-                    showSkinTones: false,
-                    emojiSize: 24,
-                    perLine: 8,
-                    maxFrequentRows: 2,
-                    custom: [
-                        {
-                            id: 'custom',
-                            name: 'Custom',
-                            emojis: Object.keys(customEmotes).map(name => ({
-                                id: name,
-                                name: name,
-                                keywords: [name.toLowerCase()],
-                                skins: [{ src: customEmotes[name] }]
-                            }))
-                        },
-                        {
-                            id: 'gifs',
-                            name: 'GIFs',
-                            emojis: Object.keys(gifEmotes).map(name => ({
-                                id: name,
-                                name: name,
-                                keywords: [name.toLowerCase()],
-                                skins: [{ src: gifEmotes[name] }]
-                            }))
-                        }
-                    ],
-                    onEmojiSelect: (emoji) => {
-                        insertEmoji(emoji);
-                        hideEmotePicker();
-                    }
-                });
-                
-                emotePicker.appendChild(emojiPicker);
-            } catch (error) {
-                console.error('Failed to initialize emoji picker:', error);
-                // Fallback to simple emote buttons
-                createFallbackEmotePicker();
-            }
-        }
-        
-        function createFallbackEmotePicker() {
-            const fallbackEmotes = ['😀', '😂', '😍', '🤔', '👍', '👎', '❤️', '🔥'];
-            emotePicker.innerHTML = '';
-            
-            const grid = document.createElement('div');
-            grid.style.display = 'grid';
-            grid.style.gridTemplateColumns = 'repeat(4, 1fr)';
-            grid.style.gap = '8px';
-            grid.style.padding = '8px';
-            
-            fallbackEmotes.forEach(emote => {
-                const btn = document.createElement('button');
-                btn.textContent = emote;
-                btn.style.background = 'none';
-                btn.style.border = 'none';
-                btn.style.fontSize = '20px';
-                btn.style.padding = '8px';
-                btn.style.cursor = 'pointer';
-                btn.style.borderRadius = '4px';
-                btn.addEventListener('click', () => {
-                    insertEmoji({ native: emote });
+        function initializeEmojiPicker() {
+            // Initialize emoji grid
+            emoteGrid.innerHTML = '';
+            basicEmojis.forEach(emoji => {
+                const emoteElement = document.createElement('button');
+                emoteElement.className = 'emote-item';
+                emoteElement.textContent = emoji;
+                emoteElement.title = emoji;
+                emoteElement.addEventListener('click', () => {
+                    insertEmoji(emoji);
                     hideEmotePicker();
                 });
-                grid.appendChild(btn);
+                emoteGrid.appendChild(emoteElement);
             });
             
-            emotePicker.appendChild(grid);
+            // Initialize custom emotes grid
+            customGrid.innerHTML = '';
+            Object.keys(customEmotes).forEach(emoteName => {
+                const emoteElement = document.createElement('button');
+                emoteElement.className = 'emote-item';
+                emoteElement.innerHTML = `<img src="${customEmotes[emoteName]}" alt="${emoteName}" title="${emoteName}">`;
+                emoteElement.addEventListener('click', () => {
+                    insertEmoji(`:${emoteName}:`);
+                    hideEmotePicker();
+                });
+                customGrid.appendChild(emoteElement);
+            });
+            
+            // Initialize GIF emotes grid
+            gifsGrid.innerHTML = '';
+            Object.keys(gifEmotes).forEach(emoteName => {
+                const emoteElement = document.createElement('button');
+                emoteElement.className = 'emote-item';
+                emoteElement.innerHTML = `<img src="${gifEmotes[emoteName]}" alt="${emoteName}" title="${emoteName}">`;
+                emoteElement.addEventListener('click', () => {
+                    insertEmoji(`:${emoteName}:`);
+                    hideEmotePicker();
+                });
+                gifsGrid.appendChild(emoteElement);
+            });
+            
+            // Setup tab switching
+            document.querySelectorAll('.emote-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    switchEmoteTab(tab.dataset.tab);
+                });
+            });
+        }
+        
+        function switchEmoteTab(tabName) {
+            currentTab = tabName;
+            
+            // Update tab buttons
+            document.querySelectorAll('.emote-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.tab === tabName);
+            });
+            
+            // Show/hide content
+            document.getElementById('emojiGrid').style.display = tabName === 'emoji' ? 'grid' : 'none';
+            document.getElementById('customGrid').style.display = tabName === 'custom' ? 'grid' : 'none';
+            document.getElementById('gifsGrid').style.display = tabName === 'gifs' ? 'grid' : 'none';
         }
         
         function insertEmoji(emoji) {
@@ -328,22 +390,9 @@
             const textBefore = messageInput.value.substring(0, cursorPos);
             const textAfter = messageInput.value.substring(cursorPos);
             
-            let emojiText = '';
-            
-            if (emoji.native) {
-                // Standard unicode emoji
-                emojiText = emoji.native;
-            } else if (emoji.id && (customEmotes[emoji.id] || gifEmotes[emoji.id])) {
-                // Custom emote or GIF - use emote name
-                emojiText = `:${emoji.id}:`;
-            } else if (emoji.shortcodes) {
-                // Emoji with shortcode
-                emojiText = emoji.shortcodes;
-            }
-            
-            messageInput.value = textBefore + emojiText + textAfter;
+            messageInput.value = textBefore + emoji + textAfter;
             messageInput.focus();
-            messageInput.setSelectionRange(cursorPos + emojiText.length, cursorPos + emojiText.length);
+            messageInput.setSelectionRange(cursorPos + emoji.length, cursorPos + emoji.length);
         }
         
         function showEmotePicker() {
