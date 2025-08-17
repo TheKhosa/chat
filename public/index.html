@@ -78,6 +78,9 @@
         .emote { height: 1.5em; width: 1.5em; vertical-align: middle; margin: 0 2px; }
         .custom-emote { height: 24px; vertical-align: middle; margin: 0 2px; }
         .gif-emote { height: 32px; vertical-align: middle; margin: 0 2px; }
+
+        /* Loading indicator */
+        .loading { color: #8a8a8a; font-style: italic; text-align: center; padding: 8px; }
     </style>
 </head>
 <body>
@@ -108,12 +111,10 @@
                     <div class="emote-tabs">
                         <button class="emote-tab active" data-tab="emoji">😀 Emoji</button>
                         <button class="emote-tab" data-tab="custom">🎮 Custom</button>
-                        <button class="emote-tab" data-tab="gifs">🎬 GIFs</button>
                     </div>
                     <div class="emote-content">
                         <div id="emojiGrid" class="emote-grid"></div>
                         <div id="customGrid" class="emote-grid" style="display: none;"></div>
-                        <div id="gifsGrid" class="emote-grid" style="display: none;"></div>
                     </div>
                 </div>
             </form>
@@ -143,47 +144,13 @@
         var emotePicker = document.getElementById('emotePicker');
         var emoteGrid = document.getElementById('emojiGrid');
         var customGrid = document.getElementById('customGrid');
-        var gifsGrid = document.getElementById('gifsGrid');
         var replyPreview = document.getElementById('replyPreview');
         var replyContent = document.getElementById('replyContent');
         var cancelReply = document.getElementById('cancelReply');
         
-        // --- NEW EXPANDED EMOTE LISTS ---
-        var customEmotes = {
-            // Twitch Global
-            'Kappa': 'https://static-cdn.jtvnw.net/emoticons/v2/25/default/dark/1.0',
-            'PogChamp': 'https://static-cdn.jtvnw.net/emoticons/v2/88/default/dark/1.0',
-            'LUL': 'https://static-cdn.jtvnw.net/emoticons/v2/425618/default/dark/1.0',
-            // 7TV
-            'KEKW': 'https://cdn.7tv.app/emote/60a57218eca3e55c5e6e9cd3/1x.webp',
-            'MonkaS': 'https://cdn.7tv.app/emote/60a57218eca3e55c5e6e9cd0/1x.webp',
-            'EZ': 'https://cdn.7tv.app/emote/60a5722dec18e05c5e6e9cdf/1x.webp',
-            // BTTV
-            'PepeHands': 'https://cdn.betterttv.net/emote/555c276900e1233534a26d93/1x',
-            'monkaW': 'https://cdn.betterttv.net/emote/59e599f5c324866810237894/1x',
-            'Pepega': 'https://cdn.betterttv.net/emote/5aca62163934094b325447a1/1x',
-            'FeelsOkayMan': 'https://cdn.betterttv.net/emote/566c9fde65dbbdab32ec053b/1x',
-            'AYAYA': 'https://cdn.betterttv.net/emote/584953a152642a47394208a3/1x',
-            'Sadge': 'https://cdn.betterttv.net/emote/5e0fa9d40550d42106b8a489/1x',
-            'Clap': 'https://cdn.betterttv.net/emote/55b63e6e60b0ff21245551b9/1x',
-            'POGGERS': 'https://cdn.betterttv.net/emote/58246e727e41c47053b34b3e/1x',
-            // FFZ
-            'Okayge': 'https://cdn.frankerfacez.com/emote/426871/1',
-            'Copium': 'https://cdn.frankerfacez.com/emote/560244/1'
-        };
-        
-        var gifEmotes = {
-            // 7TV
-            'PepeParty': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4862/1x.gif',
-            'CatJAM': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4851/1x.gif',
-            'EzDance': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f485f/1x.gif',
-            'PartyParrot': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4865/1x.gif',
-            // BTTV
-            'pepeD': 'https://cdn.betterttv.net/emote/5b159678a1127041537e2894/1x',
-            'HYPERS': 'https://cdn.betterttv.net/emote/559286d95856c116499388df/1x',
-            'gachiHYPER': 'https://cdn.betterttv.net/emote/59143b49749a4f245f7de27b/1x',
-            'VIBE': 'https://cdn.betterttv.net/emote/5a31f90b4d29314285807903/1x'
-        };
+        // Emote storage - will be loaded from API
+        var customEmotes = {};
+        var emotesLoaded = false;
         
         // Basic emoji collection
         var basicEmojis = [
@@ -234,6 +201,69 @@
             }
             return userColors[username];
         }
+
+        // Load emotes from API
+        async function loadCustomEmotes() {
+            try {
+                console.log('Loading emotes from API...');
+                const response = await fetch('http://stream.0domain.click/emotes.json');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const emotesData = await response.json();
+                console.log('Emotes loaded:', emotesData.length);
+                
+                // Clear existing emotes
+                customEmotes = {};
+                
+                // Process the emotes from the API
+                emotesData.forEach(emote => {
+                    if (emote.Name && emote.ImageUrl) {
+                        customEmotes[emote.Name] = emote.ImageUrl;
+                    }
+                });
+                
+                console.log('Processed custom emotes:', Object.keys(customEmotes).length);
+                emotesLoaded = true;
+                
+                // Refresh the custom emotes grid if it's already initialized
+                if (customGrid) {
+                    initializeCustomEmotes();
+                }
+                
+            } catch (error) {
+                console.error('Failed to load custom emotes:', error);
+                showError('Failed to load custom emotes from server');
+                emotesLoaded = true; // Set to true to prevent infinite loading
+            }
+        }
+
+        function initializeCustomEmotes() {
+            customGrid.innerHTML = '';
+            
+            if (!emotesLoaded) {
+                customGrid.innerHTML = '<div class="loading">Loading custom emotes...</div>';
+                return;
+            }
+            
+            if (Object.keys(customEmotes).length === 0) {
+                customGrid.innerHTML = '<div class="loading">No custom emotes available</div>';
+                return;
+            }
+            
+            Object.keys(customEmotes).forEach(emoteName => {
+                const emoteElement = document.createElement('button');
+                emoteElement.className = 'emote-item';
+                emoteElement.innerHTML = `<img src="${customEmotes[emoteName]}" alt="${emoteName}" title="${emoteName}" onerror="this.style.display='none'">`;
+                emoteElement.addEventListener('click', () => {
+                    insertEmoji(`:${emoteName}:`);
+                    hideEmotePicker();
+                });
+                customGrid.appendChild(emoteElement);
+            });
+        }
         
         function initializeFromURL() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -258,6 +288,7 @@
         }
         
         function initializeEmojiPicker() {
+            // Initialize basic emojis
             emoteGrid.innerHTML = '';
             basicEmojis.forEach(emoji => {
                 const emoteElement = document.createElement('button');
@@ -271,29 +302,11 @@
                 emoteGrid.appendChild(emoteElement);
             });
             
-            customGrid.innerHTML = '';
-            Object.keys(customEmotes).forEach(emoteName => {
-                const emoteElement = document.createElement('button');
-                emoteElement.className = 'emote-item';
-                emoteElement.innerHTML = `<img src="${customEmotes[emoteName]}" alt="${emoteName}" title="${emoteName}">`;
-                emoteElement.addEventListener('click', () => {
-                    insertEmoji(`:${emoteName}:`);
-                    hideEmotePicker();
-                });
-                customGrid.appendChild(emoteElement);
-            });
+            // Initialize custom emotes (will show loading first)
+            initializeCustomEmotes();
             
-            gifsGrid.innerHTML = '';
-            Object.keys(gifEmotes).forEach(emoteName => {
-                const emoteElement = document.createElement('button');
-                emoteElement.className = 'emote-item';
-                emoteElement.innerHTML = `<img src="${gifEmotes[emoteName]}" alt="${emoteName}" title="${emoteName}">`;
-                emoteElement.addEventListener('click', () => {
-                    insertEmoji(`:${emoteName}:`);
-                    hideEmotePicker();
-                });
-                gifsGrid.appendChild(emoteElement);
-            });
+            // Load custom emotes from API
+            loadCustomEmotes();
             
             document.querySelectorAll('.emote-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
@@ -309,7 +322,6 @@
             });
             document.getElementById('emojiGrid').style.display = tabName === 'emoji' ? 'grid' : 'none';
             document.getElementById('customGrid').style.display = tabName === 'custom' ? 'grid' : 'none';
-            document.getElementById('gifsGrid').style.display = tabName === 'gifs' ? 'grid' : 'none';
         }
         
         function insertEmoji(emoji) {
@@ -382,17 +394,13 @@
         function processEmotes(text) {
             let processedText = escapeHtml(text);
 
+            // Process custom emotes from API
             Object.keys(customEmotes).forEach(emoteName => {
                 const regex = new RegExp(escapeRegex(`:${emoteName}:`), 'g');
+                const isAnimated = customEmotes[emoteName].includes('.gif');
+                const className = isAnimated ? 'gif-emote' : 'custom-emote';
                 processedText = processedText.replace(regex, 
-                    `<img src="${customEmotes[emoteName]}" alt="${emoteName}" class="custom-emote" title="${emoteName}">`
-                );
-            });
-
-            Object.keys(gifEmotes).forEach(emoteName => {
-                const regex = new RegExp(escapeRegex(`:${emoteName}:`), 'g');
-                processedText = processedText.replace(regex, 
-                    `<img src="${gifEmotes[emoteName]}" alt="${emoteName}" class="gif-emote" title="${emoteName}">`
+                    `<img src="${customEmotes[emoteName]}" alt="${emoteName}" class="${className}" title="${emoteName}">`
                 );
             });
             
