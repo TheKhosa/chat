@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stream Chat</title>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emoji-mart/data@latest/dist/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emoji-mart/browser@latest/dist/index.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #1a1a1a; color: #e5e5e5; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -46,11 +48,29 @@
         .emote-btn:hover { background: #3c3c3c; }
         .send-btn { background: #c02b2b; color: white; padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; transition: background 0.2s; font-size: 12px; }
         .send-btn:hover { background: #e04141; }
-        .emote-picker { position: absolute; bottom: 100%; left: 0; right: 0; background: #0f0f0f; border: 1px solid #2c2c2c; border-radius: 6px; padding: 8px; display: none; max-height: 200px; overflow-y: auto; z-index: 1000; }
+        .emote-picker { 
+            position: absolute; 
+            bottom: 100%; 
+            right: 0; 
+            background: #0f0f0f; 
+            border: 1px solid #2c2c2c; 
+            border-radius: 6px; 
+            display: none; 
+            z-index: 1000; 
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
         .emote-picker.show { display: block; }
-        .emote-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 4px; }
-        .emote-item { background: none; border: none; padding: 6px; border-radius: 4px; cursor: pointer; font-size: 18px; transition: background 0.2s; display: flex; align-items: center; justify-content: center; }
-        .emote-item:hover { background: rgba(255, 255, 255, 0.1); }
+        
+        /* Custom emote picker styling */
+        em-emoji-picker {
+            --rgb-background: 15, 15, 15;
+            --rgb-input: 26, 26, 26;
+            --rgb-color: 229, 229, 229;
+            --rgb-accent: 192, 43, 43;
+            --rgb-border: 44, 44, 44;
+            --border-radius: 6px;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
         .error { color: #ff6b6b; background: rgba(255, 107, 107, 0.1); padding: 8px; border-radius: 4px; margin: 8px; text-align: center; font-size: 12px; }
         body::-webkit-scrollbar { display: none; }
         body { -ms-overflow-style: none; scrollbar-width: none; }
@@ -69,8 +89,25 @@
         .user-teal { color: #26a69a !important; }
         .user-amber { color: #ffca28 !important; }
         
-        /* Emote styling */
-        .emote { font-size: 16px; vertical-align: middle; margin: 0 1px; }
+        /* Emote styling in messages */
+        .emote { 
+            font-size: 18px; 
+            vertical-align: middle; 
+            margin: 0 2px; 
+            display: inline-block;
+        }
+        
+        .custom-emote {
+            height: 24px;
+            vertical-align: middle;
+            margin: 0 2px;
+        }
+        
+        .gif-emote {
+            height: 32px;
+            vertical-align: middle;
+            margin: 0 2px;
+        }
     </style>
 </head>
 <body>
@@ -98,7 +135,7 @@
                     <button type="submit" class="send-btn">Send</button>
                 </div>
                 <div id="emotePicker" class="emote-picker">
-                    <div class="emote-grid" id="emoteGrid"></div>
+                    <!-- Emoji Mart picker will be inserted here -->
                 </div>
             </form>
         </div>
@@ -130,25 +167,26 @@
         const replyContent = document.getElementById('replyContent');
         const cancelReply = document.getElementById('cancelReply');
         
-        // Available emotes
-        const emotes = [
-            '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃',
-            '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '☺️', '😚',
-            '😙', '🥲', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭',
-            '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄',
-            '😬', '🤥', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢',
-            '🤮', '🤧', '🥵', '🥶', '🥴', '😵', '🤯', '🤠', '🥳', '🥸',
-            '😎', '🤓', '🧐', '😕', '😟', '🙁', '☹️', '😮', '😯', '😲',
-            '😳', '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱',
-            '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠',
-            '🤬', '😈', '👿', '💀', '☠️', '💩', '🤡', '👹', '👺', '👻',
-            '👽', '👾', '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽',
-            '🙀', '😿', '😾', '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤',
-            '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘',
-            '💝', '💟', '👍', '👎', '👌', '🤏', '✌️', '🤞', '🤟', '🤘',
-            '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👋', '🤚', '🖐️',
-            '✋', '🖖', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💪'
-        ];
+        // Custom emotes and GIFs configuration
+        const customEmotes = {
+            // Twitch-style custom emotes (you can add your own)
+            'Kappa': 'https://static-cdn.jtvnw.net/emoticons/v2/25/default/dark/1.0',
+            'PogChamp': 'https://static-cdn.jtvnw.net/emoticons/v2/88/default/dark/1.0',
+            'KEKW': 'https://cdn.7tv.app/emote/60a57218eca3e55c5e6e9cd3/1x.webp',
+            'LUL': 'https://static-cdn.jtvnw.net/emoticons/v2/425618/default/dark/1.0',
+            'MonkaS': 'https://cdn.7tv.app/emote/60a57218eca3e55c5e6e9cd0/1x.webp',
+            'EZ': 'https://cdn.7tv.app/emote/60a5722dec18e05c5e6e9cdf/1x.webp',
+        };
+        
+        const gifEmotes = {
+            // Popular GIF emotes
+            'PepeParty': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4862/1x.gif',
+            'CatJAM': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4851/1x.gif',
+            'EzDance': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f485f/1x.gif',
+            'PartyParrot': 'https://cdn.7tv.app/emote/60b07b34a632b9b67b3f4865/1x.gif',
+        };
+        
+        let emojiPicker = null;
         
         // User color classes
         const colorClasses = [
@@ -198,31 +236,114 @@
                 usernameInput.focus();
             }
             
-            // Initialize emote picker
-            initializeEmotePicker();
+            // Initialize emoji picker
+            initializeEmojiPicker();
         }
         
-        function initializeEmotePicker() {
-            emoteGrid.innerHTML = '';
-            emotes.forEach(emote => {
-                const emoteElement = document.createElement('button');
-                emoteElement.className = 'emote-item';
-                emoteElement.textContent = emote;
-                emoteElement.addEventListener('click', () => {
-                    insertEmote(emote);
+        async function initializeEmojiPicker() {
+            try {
+                // Wait for Emoji Mart to load
+                if (typeof EmojiMart === 'undefined') {
+                    setTimeout(initializeEmojiPicker, 100);
+                    return;
+                }
+                
+                // Create emoji picker with custom configuration
+                emojiPicker = new EmojiMart.Picker({
+                    data: EmojiMart.data,
+                    theme: 'dark',
+                    set: 'twitter',
+                    showPreview: false,
+                    showSkinTones: false,
+                    emojiSize: 24,
+                    perLine: 8,
+                    maxFrequentRows: 2,
+                    custom: [
+                        {
+                            id: 'custom',
+                            name: 'Custom',
+                            emojis: Object.keys(customEmotes).map(name => ({
+                                id: name,
+                                name: name,
+                                keywords: [name.toLowerCase()],
+                                skins: [{ src: customEmotes[name] }]
+                            }))
+                        },
+                        {
+                            id: 'gifs',
+                            name: 'GIFs',
+                            emojis: Object.keys(gifEmotes).map(name => ({
+                                id: name,
+                                name: name,
+                                keywords: [name.toLowerCase()],
+                                skins: [{ src: gifEmotes[name] }]
+                            }))
+                        }
+                    ],
+                    onEmojiSelect: (emoji) => {
+                        insertEmoji(emoji);
+                        hideEmotePicker();
+                    }
+                });
+                
+                emotePicker.appendChild(emojiPicker);
+            } catch (error) {
+                console.error('Failed to initialize emoji picker:', error);
+                // Fallback to simple emote buttons
+                createFallbackEmotePicker();
+            }
+        }
+        
+        function createFallbackEmotePicker() {
+            const fallbackEmotes = ['😀', '😂', '😍', '🤔', '👍', '👎', '❤️', '🔥'];
+            emotePicker.innerHTML = '';
+            
+            const grid = document.createElement('div');
+            grid.style.display = 'grid';
+            grid.style.gridTemplateColumns = 'repeat(4, 1fr)';
+            grid.style.gap = '8px';
+            grid.style.padding = '8px';
+            
+            fallbackEmotes.forEach(emote => {
+                const btn = document.createElement('button');
+                btn.textContent = emote;
+                btn.style.background = 'none';
+                btn.style.border = 'none';
+                btn.style.fontSize = '20px';
+                btn.style.padding = '8px';
+                btn.style.cursor = 'pointer';
+                btn.style.borderRadius = '4px';
+                btn.addEventListener('click', () => {
+                    insertEmoji({ native: emote });
                     hideEmotePicker();
                 });
-                emoteGrid.appendChild(emoteElement);
+                grid.appendChild(btn);
             });
+            
+            emotePicker.appendChild(grid);
         }
         
-        function insertEmote(emote) {
+        function insertEmoji(emoji) {
             const cursorPos = messageInput.selectionStart;
             const textBefore = messageInput.value.substring(0, cursorPos);
             const textAfter = messageInput.value.substring(cursorPos);
-            messageInput.value = textBefore + emote + textAfter;
+            
+            let emojiText = '';
+            
+            if (emoji.native) {
+                // Standard unicode emoji
+                emojiText = emoji.native;
+            } else if (emoji.id && (customEmotes[emoji.id] || gifEmotes[emoji.id])) {
+                // Custom emote or GIF - use emote name
+                emojiText = `:${emoji.id}:`;
+            } else if (emoji.shortcodes) {
+                // Emoji with shortcode
+                emojiText = emoji.shortcodes;
+            }
+            
+            messageInput.value = textBefore + emojiText + textAfter;
             messageInput.focus();
-            messageInput.setSelectionRange(cursorPos + emote.length, cursorPos + emote.length);
+            messageInput.setSelectionRange(cursorPos + emojiText.length, cursorPos + emojiText.length);
         }
         
         function showEmotePicker() {
@@ -277,8 +398,59 @@
         }
         
         function processEmotes(text) {
+            let processedText = text;
+            
+            // Process custom emotes
+            Object.keys(customEmotes).forEach(emoteName => {
+                const regex = new RegExp(`:${emoteName}:`, 'g');
+                processedText = processedText.replace(regex, 
+                    `<img src="${customEmotes[emoteName]}" alt="${emoteName}" class="custom-emote" title="${emoteName}">`
+                );
+            });
+            
+            // Process GIF emotes
+            Object.keys(gifEmotes).forEach(emoteName => {
+                const regex = new RegExp(`:${emoteName}:`, 'g');
+                processedText = processedText.replace(regex, 
+                    `<img src="${gifEmotes[emoteName]}" alt="${emoteName}" class="gif-emote" title="${emoteName}">`
+                );
+            });
+            
+            // Process common shortcodes for unicode emojis
+            const shortcodes = {
+                ':)': '🙂',
+                ':D': '😃',
+                ':(': '😞',
+                ':P': '😛',
+                ':p': '😛',
+                'xD': '😆',
+                '<3': '❤️',
+                '</3': '💔',
+                ':o': '😮',
+                ':O': '😮',
+                ';)': '😉',
+                ':|': '😐',
+                ':/': '😕',
+                ':heart:': '❤️',
+                ':fire:': '🔥',
+                ':thumbsup:': '👍',
+                ':thumbsdown:': '👎',
+                ':100:': '💯'
+            };
+            
+            Object.keys(shortcodes).forEach(shortcode => {
+                const regex = new RegExp(escapeRegex(shortcode), 'g');
+                processedText = processedText.replace(regex, shortcodes[shortcode]);
+            });
+            
+            return processedText;
+        }
+        
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\        function processEmotes(text) {
             // Simple emote replacement - you can expand this with custom emotes
             return text; // For now, just return as is since emotes are already unicode
+        }');
         }
         
         // Event listeners
