@@ -129,135 +129,104 @@ async function fetchCustomEmotesFromAPI() {
 
 // Fetch FFZ emotes from their API
 async function fetchFFZEmotes(searchQuery = '', page = 1, perPage = 50, sort = 'count-desc') {
-  try {
-    // Create cache key
-    const cacheKey = `${searchQuery || 'all'}-${page}-${perPage}-${sort}`;
-    
-    // Check cache first
-    const cached = ffzEmoteCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < FFZ_CACHE_DURATION) {
-      console.log('Serving FFZ emotes from cache:', cacheKey);
-      return cached.data;
-    }
-    
-    // Build FFZ API URL
-    const params = new URLSearchParams({
-      page: page.toString(),
-      per_page: perPage.toString(),
-      sort
-    });
-    
-    if (searchQuery) {
-      params.append('q', searchQuery);
-    }
-    
-    const ffzUrl = `https://api.frankerfacez.com/v1/emoticons?${params}`;
-    console.log('Fetching from FFZ API:', ffzUrl);
-    
-    // Use fetch or https module
-    let response;
-    if (typeof fetch !== 'undefined') {
-      response = await fetch(ffzUrl, {
-        headers: {
-          'User-Agent': 'ChatApp/1.0 (Educational Purpose)',
-          'Accept': 'application/json'
+    try {
+        const cacheKey = `${searchQuery || 'all'}-${page}-${perPage}-${sort}`;
+        const cached = ffzEmoteCache.get(cacheKey);
+        if (cached && Date.now() - cached.timestamp < FFZ_CACHE_DURATION) {
+            console.log('Serving FFZ emotes from cache:', cacheKey);
+            return cached.data;
         }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`FFZ API error: ${response.status} ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      
-      // Transform the data to include direct image URLs
-      const transformedData = {
-        ...data,
-        emoticons: data.emoticons.map(emote => ({
-          id: emote.id,
-          name: emote.name,
-          owner: emote.owner,
-          urls: emote.urls,
-          // Add direct URL for easy access
-          imageUrl: emote.urls['1'] ? `https:${emote.urls['1']}` : 
-                   emote.urls['2'] ? `https:${emote.urls['2']}` : 
-                   emote.urls['4'] ? `https:${emote.urls['4']}` : null,
-          width: emote.width,
-          height: emote.height,
-          public: emote.public
-        }))
-      };
-      
-      // Cache the result
-      ffzEmoteCache.set(cacheKey, {
-        data: transformedData,
-        timestamp: Date.now()
-      });
-      
-      return transformedData;
-      
-    } else {
-      // Fallback for older Node.js
-      const https = require('https');
-      const url = require('url');
-      const parsedUrl = url.parse(ffzUrl);
-      
-      const data = await new Promise((resolve, reject) => {
-        const req = https.get({
-          hostname: parsedUrl.hostname,
-          path: parsedUrl.path,
-          headers: {
-            'User-Agent': 'ChatApp/1.0 (Educational Purpose)',
-            'Accept': 'application/json'
-          }
-        }, (res) => {
-          let data = '';
-          res.on('data', chunk => data += chunk);
-          res.on('end', () => {
-            try {
-              resolve(JSON.parse(data));
-            } catch (e) {
-              reject(e);
+
+        const params = new URLSearchParams({
+            page: page.toString(),
+            per_page: perPage.toString(),
+            sort
+        });
+
+        if (searchQuery) {
+            params.append('q', searchQuery);
+        }
+
+        const ffzUrl = `https://api.frankerfacez.com/v1/emoticons?${params}`;
+        console.log('Fetching from FFZ API:', ffzUrl);
+
+        const processEmoteData = (data) => {
+            return {
+                ...data,
+                emoticons: data.emoticons.map(emote => {
+                    // Get the best available raw URL (higher resolution is better)
+                    const rawUrl = emote.urls['4'] || emote.urls['2'] || emote.urls['1'];
+                    let finalImageUrl = null;
+
+                    if (rawUrl) {
+                        // Check if the URL is protocol-relative (starts with //)
+                        if (rawUrl.startsWith('//')) {
+                            finalImageUrl = `https:${rawUrl}`;
+                        } else {
+                            // Otherwise, use the URL as-is (it's already a full URL)
+                            finalImageUrl = rawUrl;
+                        }
+                    }
+
+                    return {
+                        id: emote.id,
+                        name: emote.name,
+                        owner: emote.owner,
+                        urls: emote.urls,
+                        imageUrl: finalImageUrl,
+                        width: emote.width,
+                        height: emote.height,
+                        public: emote.public
+                    };
+                })
+            };
+        };
+
+        let data;
+        if (typeof fetch !== 'undefined') {
+            const response = await fetch(ffzUrl, {
+                headers: {
+                    'User-Agent': 'ChatApp/1.0 (Educational Purpose)',
+                    'Accept': 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error(`FFZ API error: ${response.status} ${response.statusText}`);
             }
-          });
-        });
-        req.on('error', reject);
-        req.setTimeout(10000, () => {
-          req.destroy();
-          reject(new Error('Request timeout'));
-        });
-      });
-      
-      // Transform data and cache
-      const transformedData = {
-        ...data,
-        emoticons: data.emoticons.map(emote => ({
-          id: emote.id,
-          name: emote.name,
-          owner: emote.owner,
-          urls: emote.urls,
-          imageUrl: emote.urls['1'] ? `https:${emote.urls['1']}` : 
-                   emote.urls['2'] ? `https:${emote.urls['2']}` : 
-                   emote.urls['4'] ? `https:${emote.urls['4']}` : null,
-          width: emote.width,
-          height: emote.height,
-          public: emote.public
-        }))
-      };
-      
-      ffzEmoteCache.set(cacheKey, {
-        data: transformedData,
-        timestamp: Date.now()
-      });
-      
-      return transformedData;
+
+            data = await response.json();
+        } else {
+            // Fallback for older Node.js
+            const https = require('https');
+            const url = require('url');
+            const parsedUrl = url.parse(ffzUrl);
+            
+            data = await new Promise((resolve, reject) => {
+                const req = https.get({
+                    hostname: parsedUrl.hostname,
+                    path: parsedUrl.path,
+                    headers: { 'User-Agent': 'ChatApp/1.0 (Educational Purpose)', 'Accept': 'application/json' }
+                }, (res) => {
+                    let responseBody = '';
+                    res.on('data', chunk => responseBody += chunk);
+                    res.on('end', () => { try { resolve(JSON.parse(responseBody)); } catch (e) { reject(e); } });
+                });
+                req.on('error', reject);
+                req.setTimeout(10000, () => { req.destroy(); reject(new Error('Request timeout')); });
+            });
+        }
+        
+        const transformedData = processEmoteData(data);
+        ffzEmoteCache.set(cacheKey, { data: transformedData, timestamp: Date.now() });
+        return transformedData;
+
+    } catch (error) {
+        console.error('Failed to fetch FFZ emotes:', error);
+        throw error;
     }
-    
-  } catch (error) {
-    console.error('Failed to fetch FFZ emotes:', error);
-    throw error;
-  }
 }
+
 
 // Get custom emotes with caching
 async function getCustomEmotes() {
