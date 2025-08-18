@@ -351,7 +351,21 @@
                 const emoteElement = document.createElement('button');
                 emoteElement.className = 'emote-item';
                 emoteElement.title = name;
-                emoteElement.innerHTML = `<img src="${url}" alt="${name}" class="ffz-emote" onerror="this.parentElement.style.display='none'">`;
+                
+                // Add better error handling and URL validation
+                const img = document.createElement('img');
+                img.src = url;
+                img.alt = name;
+                img.className = 'ffz-emote';
+                img.onerror = function() {
+                    console.warn(`Failed to load FFZ emote: ${name} from ${url}`);
+                    this.parentElement.style.display = 'none';
+                };
+                img.onload = function() {
+                    console.log(`Successfully loaded FFZ emote: ${name}`);
+                };
+                
+                emoteElement.appendChild(img);
                 emoteElement.addEventListener('click', () => {
                     insertEmoji(name);
                     hideEmotePicker();
