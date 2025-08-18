@@ -19,6 +19,11 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Handle favicon.ico to prevent 404 errors
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end(); // No content
+});
+
 // In-memory data storage
 const channels = new Map();
 const users = new Map(); // Maps socket.id -> { username, channel, color }
