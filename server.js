@@ -706,6 +706,31 @@ app.post('/api/ffz/clear-cache', (req, res) => {
   res.json({ message: 'FFZ cache cleared' });
 });
 
+// Debug endpoint to check FFZ URLs
+app.get('/api/ffz/debug', async (req, res) => {
+  try {
+    const data = await fetchFFZEmotes('', 1, 5); // Get first 5 emotes for debugging
+    const debugInfo = data.emoticons.map(emote => ({
+      name: emote.name,
+      id: emote.id,
+      originalUrls: emote.urls,
+      processedImageUrl: emote.imageUrl,
+      urlCheck: emote.imageUrl ? 'Generated' : 'Missing'
+    }));
+    
+    res.json({
+      message: 'FFZ Debug Info',
+      emotes: debugInfo,
+      totalEmotes: data.emoticons.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: 'Debug failed',
+      message: error.message
+    });
+  }
+});
+
 // ========== EXISTING API ENDPOINTS (Updated) ==========
 
 // API endpoint to serve emotes.json (your existing custom emotes)
