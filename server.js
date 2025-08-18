@@ -30,10 +30,14 @@ const MAX_MESSAGE_LENGTH = 500;
 const MAX_USERNAME_LENGTH = 20;
 const MIN_USERNAME_LENGTH = 2;
 
-// Emote cache and API management
-let emotesCache = new Map(); // Map emote name to URL
-let emotesLastFetch = 0;
-const EMOTES_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+// FFZ Emote cache and API management
+const ffzEmoteCache = new Map(); // Cache for FFZ API responses
+const FFZ_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
+
+// Custom emote cache (your existing emotes)
+let customEmotesCache = new Map(); // Map emote name to URL
+let customEmotesLastFetch = 0;
+const CUSTOM_EMOTES_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes cache
 
 // User color classes for consistent coloring
 const userColors = [
@@ -51,10 +55,10 @@ function getUserColor(username) {
   return userColors[Math.abs(hash) % userColors.length];
 }
 
-// Fetch emotes from external API
-async function fetchEmotesFromAPI() {
+// Fetch custom emotes from your existing external API
+async function fetchCustomEmotesFromAPI() {
   try {
-    console.log('Fetching emotes from external API...');
+    console.log('Fetching custom emotes from external API...');
     
     // Try to use global fetch first (Node.js 18+)
     let response;
@@ -83,14 +87,14 @@ async function fetchEmotesFromAPI() {
       });
       
       // Process the data directly for https fallback
-      console.log(`Loaded ${responseData.length} emotes from API`);
-      emotesCache.clear();
+      console.log(`Loaded ${responseData.length} custom emotes from API`);
+      customEmotesCache.clear();
       responseData.forEach(emote => {
         if (emote.Name && emote.ImageUrl) {
-          emotesCache.set(emote.Name, emote.ImageUrl);
+          customEmotesCache.set(emote.Name, emote.ImageUrl);
         }
       });
-      emotesLastFetch = Date.now();
+      customEmotesLastFetch = Date.now();
       return responseData;
     }
     
@@ -99,35 +103,167 @@ async function fetchEmotesFromAPI() {
     }
     
     const emotesData = await response.json();
-    console.log(`Loaded ${emotesData.length} emotes from API`);
+    console.log(`Loaded ${emotesData.length} custom emotes from API`);
     
     // Clear and rebuild cache
-    emotesCache.clear();
+    customEmotesCache.clear();
     emotesData.forEach(emote => {
       if (emote.Name && emote.ImageUrl) {
-        emotesCache.set(emote.Name, emote.ImageUrl);
+        customEmotesCache.set(emote.Name, emote.ImageUrl);
       }
     });
     
-    emotesLastFetch = Date.now();
+    customEmotesLastFetch = Date.now();
     return emotesData;
     
   } catch (error) {
-    console.error('Failed to fetch emotes from API:', error);
+    console.error('Failed to fetch custom emotes from API:', error);
     return [];
   }
 }
 
-// Get emotes with caching
-async function getEmotes() {
+// Fetch FFZ emotes from their API
+async function fetchFFZEmotes(searchQuery = '', page = 1, perPage = 50, sort = 'count-desc') {
+  try {
+    // Create cache key
+    const cacheKey = `${searchQuery || 'all'}-${page}-${perPage}-${sort}`;
+    
+    // Check cache first
+    const cached = ffzEmoteCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < FFZ_CACHE_DURATION) {
+      console.log('Serving FFZ emotes from cache:', cacheKey);
+      return cached.data;
+    }
+    
+    // Build FFZ API URL
+    const params = new URLSearchParams({
+      page: page.toString(),
+      per_page: perPage.toString(),
+      sort
+    });
+    
+    if (searchQuery) {
+      params.append('q', searchQuery);
+    }
+    
+    const ffzUrl = `https://api.frankerfacez.com/v1/emoticons?${params}`;
+    console.log('Fetching from FFZ API:', ffzUrl);
+    
+    // Use fetch or https module
+    let response;
+    if (typeof fetch !== 'undefined') {
+      response = await fetch(ffzUrl, {
+        headers: {
+          'User-Agent': 'ChatApp/1.0 (Educational Purpose)',
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`FFZ API error: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      // Transform the data to include direct image URLs
+      const transformedData = {
+        ...data,
+        emoticons: data.emoticons.map(emote => ({
+          id: emote.id,
+          name: emote.name,
+          owner: emote.owner,
+          urls: emote.urls,
+          // Add direct URL for easy access
+          imageUrl: emote.urls['1'] ? `https:${emote.urls['1']}` : 
+                   emote.urls['2'] ? `https:${emote.urls['2']}` : 
+                   emote.urls['4'] ? `https:${emote.urls['4']}` : null,
+          width: emote.width,
+          height: emote.height,
+          public: emote.public
+        }))
+      };
+      
+      // Cache the result
+      ffzEmoteCache.set(cacheKey, {
+        data: transformedData,
+        timestamp: Date.now()
+      });
+      
+      return transformedData;
+      
+    } else {
+      // Fallback for older Node.js
+      const https = require('https');
+      const url = require('url');
+      const parsedUrl = url.parse(ffzUrl);
+      
+      const data = await new Promise((resolve, reject) => {
+        const req = https.get({
+          hostname: parsedUrl.hostname,
+          path: parsedUrl.path,
+          headers: {
+            'User-Agent': 'ChatApp/1.0 (Educational Purpose)',
+            'Accept': 'application/json'
+          }
+        }, (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => {
+            try {
+              resolve(JSON.parse(data));
+            } catch (e) {
+              reject(e);
+            }
+          });
+        });
+        req.on('error', reject);
+        req.setTimeout(10000, () => {
+          req.destroy();
+          reject(new Error('Request timeout'));
+        });
+      });
+      
+      // Transform data and cache
+      const transformedData = {
+        ...data,
+        emoticons: data.emoticons.map(emote => ({
+          id: emote.id,
+          name: emote.name,
+          owner: emote.owner,
+          urls: emote.urls,
+          imageUrl: emote.urls['1'] ? `https:${emote.urls['1']}` : 
+                   emote.urls['2'] ? `https:${emote.urls['2']}` : 
+                   emote.urls['4'] ? `https:${emote.urls['4']}` : null,
+          width: emote.width,
+          height: emote.height,
+          public: emote.public
+        }))
+      };
+      
+      ffzEmoteCache.set(cacheKey, {
+        data: transformedData,
+        timestamp: Date.now()
+      });
+      
+      return transformedData;
+    }
+    
+  } catch (error) {
+    console.error('Failed to fetch FFZ emotes:', error);
+    throw error;
+  }
+}
+
+// Get custom emotes with caching
+async function getCustomEmotes() {
   const now = Date.now();
   
   // Check if cache is expired or empty
-  if (emotesCache.size === 0 || (now - emotesLastFetch) > EMOTES_CACHE_DURATION) {
-    await fetchEmotesFromAPI();
+  if (customEmotesCache.size === 0 || (now - customEmotesLastFetch) > CUSTOM_EMOTES_CACHE_DURATION) {
+    await fetchCustomEmotesFromAPI();
   }
   
-  return emotesCache;
+  return customEmotesCache;
 }
 
 // Validate and sanitize input
@@ -149,12 +285,12 @@ function validateMessage(message) {
 }
 
 async function validateEmotes(message) {
-  // Get current emotes from cache
-  const emotes = await getEmotes();
+  // Get current custom emotes from cache
+  const customEmotes = await getCustomEmotes();
   let emoteCount = 0;
   
-  // Count emotes in message
-  for (const [emoteName] of emotes) {
+  // Count custom emotes in message (format :emoteName:)
+  for (const [emoteName] of customEmotes) {
     const regex = new RegExp(`:${emoteName}:`, 'g');
     const matches = message.match(regex);
     if (matches) {
@@ -162,8 +298,19 @@ async function validateEmotes(message) {
     }
   }
   
+  // Count FFZ emotes (they're used directly by name, like "Pog", "KEKW", etc.)
+  // For now, we'll do a simple word count that could be FFZ emotes
+  const words = message.split(/\s+/);
+  const potentialFFZEmotes = words.filter(word => 
+    word.length >= 3 && 
+    word.length <= 25 && 
+    /^[a-zA-Z0-9_]+$/.test(word) &&
+    (word[0] === word[0].toUpperCase() || word.includes('pepe') || word.includes('monka'))
+  );
+  emoteCount += potentialFFZEmotes.length;
+  
   // Limit to 10 emotes per message
-  return emoteCount <= 10;
+  return emoteCount <= 15; // Slightly higher limit for FFZ emotes
 }
 
 function validateUsername(username) {
@@ -203,7 +350,7 @@ function getMessageHistory(channelName, limit = 50) {
   return history.slice(-limit);
 }
 
-// Socket.io connection handling
+// Socket.io connection handling (keeping all your existing functionality)
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
@@ -303,7 +450,7 @@ io.on('connection', (socket) => {
     // Validate emote usage
     const emotesValid = await validateEmotes(validMessage);
     if (!emotesValid) {
-      return socket.emit('error', { message: 'Too many emotes in message. Limit: 10 per message.' });
+      return socket.emit('error', { message: 'Too many emotes in message. Limit: 15 per message.' });
     }
 
     // Validate replyTo data if provided
@@ -497,23 +644,82 @@ setInterval(() => {
   }
 }, 5000); // Check every 5 seconds
 
-// API endpoint to serve emotes.json (proxy to external API)
-app.get('/emotes.json', async (req, res) => {
+// ========== NEW FFZ API ENDPOINTS ==========
+
+// FFZ API proxy endpoint
+app.get('/api/ffz/emoticons', async (req, res) => {
   try {
-    const emotesData = await fetchEmotesFromAPI();
+    const { q, page = 1, per_page = 50, sort = 'count-desc' } = req.query;
+    
+    const data = await fetchFFZEmotes(q, parseInt(page), parseInt(per_page), sort);
     res.setHeader('Cache-Control', 'public, max-age=300'); // Cache for 5 minutes
-    res.json(emotesData);
+    res.json(data);
+    
   } catch (error) {
-    console.error('Error serving emotes:', error);
-    res.status(500).json({ error: 'Failed to fetch emotes' });
+    console.error('FFZ API proxy error:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch emotes from FrankerFaceZ',
+      message: error.message 
+    });
   }
 });
 
-// API endpoint for available emotes (legacy, now proxies to external API)
+// Get popular FFZ emotes (curated list)
+app.get('/api/ffz/popular', async (req, res) => {
+  try {
+    // Get the first page of most popular emotes
+    const data = await fetchFFZEmotes('', 1, 20, 'count-desc');
+    res.setHeader('Cache-Control', 'public, max-age=600'); // Cache for 10 minutes
+    res.json(data);
+    
+  } catch (error) {
+    console.error('Error fetching popular FFZ emotes:', error);
+    
+    // Fallback to hardcoded popular emotes
+    const popularEmotes = {
+      emoticons: [
+        { name: 'OMEGALUL', imageUrl: 'https://cdn.frankerfacez.com/emoticon/128054/1', id: 128054 },
+        { name: 'Pog', imageUrl: 'https://cdn.frankerfacez.com/emoticon/210748/1', id: 210748 },
+        { name: 'PepeHands', imageUrl: 'https://cdn.frankerfacez.com/emoticon/59765/1', id: 59765 },
+        { name: 'LULW', imageUrl: 'https://cdn.frankerfacez.com/emoticon/134240/1', id: 134240 },
+        { name: 'KEKW', imageUrl: 'https://cdn.frankerfacez.com/emoticon/381875/1', id: 381875 },
+        { name: 'monkaW', imageUrl: 'https://cdn.frankerfacez.com/emoticon/229486/1', id: 229486 },
+        { name: '5Head', imageUrl: 'https://cdn.frankerfacez.com/emoticon/274406/1', id: 274406 },
+        { name: 'POGGERS', imageUrl: 'https://cdn.frankerfacez.com/emoticon/214129/1', id: 214129 },
+        { name: 'monkaS', imageUrl: 'https://cdn.frankerfacez.com/emoticon/130762/1', id: 130762 },
+        { name: 'PepeLaugh', imageUrl: 'https://cdn.frankerfacez.com/emoticon/263056/1', id: 263056 }
+      ]
+    };
+    
+    res.status(200).json(popularEmotes);
+  }
+});
+
+// Clear FFZ cache endpoint (for development)
+app.post('/api/ffz/clear-cache', (req, res) => {
+  ffzEmoteCache.clear();
+  res.json({ message: 'FFZ cache cleared' });
+});
+
+// ========== EXISTING API ENDPOINTS (Updated) ==========
+
+// API endpoint to serve emotes.json (your existing custom emotes)
+app.get('/emotes.json', async (req, res) => {
+  try {
+    const emotesData = await fetchCustomEmotesFromAPI();
+    res.setHeader('Cache-Control', 'public, max-age=300'); // Cache for 5 minutes
+    res.json(emotesData);
+  } catch (error) {
+    console.error('Error serving custom emotes:', error);
+    res.status(500).json({ error: 'Failed to fetch custom emotes' });
+  }
+});
+
+// API endpoint for available custom emotes
 app.get('/api/emotes', async (req, res) => {
   try {
-    const emotes = await getEmotes();
-    const emotesArray = Array.from(emotes.entries()).map(([name, url]) => ({
+    const customEmotes = await getCustomEmotes();
+    const emotesArray = Array.from(customEmotes.entries()).map(([name, url]) => ({
       name,
       url,
       isAnimated: url.includes('.gif')
@@ -522,11 +728,11 @@ app.get('/api/emotes', async (req, res) => {
     res.json({
       emotes: emotesArray,
       count: emotesArray.length,
-      lastUpdated: new Date(emotesLastFetch).toISOString()
+      lastUpdated: new Date(customEmotesLastFetch).toISOString()
     });
   } catch (error) {
-    console.error('Error serving emotes API:', error);
-    res.status(500).json({ error: 'Failed to fetch emotes' });
+    console.error('Error serving custom emotes API:', error);
+    res.status(500).json({ error: 'Failed to fetch custom emotes' });
   }
 });
 
@@ -537,8 +743,9 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     channels: channels.size,
     totalUsers: users.size,
-    emotesLoaded: emotesCache.size,
-    emotesLastFetch: emotesLastFetch ? new Date(emotesLastFetch).toISOString() : null
+    customEmotesLoaded: customEmotesCache.size,
+    customEmotesLastFetch: customEmotesLastFetch ? new Date(customEmotesLastFetch).toISOString() : null,
+    ffzCacheSize: ffzEmoteCache.size
   });
 });
 
@@ -555,15 +762,25 @@ app.get('/api/channels', (req, res) => {
   res.json({ channels: channelStats });
 });
 
-// Initialize emotes cache on startup
+// Initialize custom emotes cache on startup
 (async () => {
-  console.log('Initializing emotes cache...');
-  await fetchEmotesFromAPI();
-  console.log(`Emotes cache initialized with ${emotesCache.size} emotes`);
+  console.log('Initializing custom emotes cache...');
+  await fetchCustomEmotesFromAPI();
+  console.log(`Custom emotes cache initialized with ${customEmotesCache.size} emotes`);
+  
+  console.log('Testing FFZ API connection...');
+  try {
+    await fetchFFZEmotes('', 1, 5);
+    console.log('FFZ API connection successful');
+  } catch (error) {
+    console.log('FFZ API connection failed, will use fallback emotes');
+  }
 })();
 
 server.listen(PORT, () => {
-  console.log(`Enhanced chat server running on port ${PORT}`);
+  console.log(`Enhanced chat server with FFZ integration running on port ${PORT}`);
   console.log(`Health check available at http://localhost:${PORT}/health`);
-  console.log(`Emotes endpoint available at http://localhost:${PORT}/emotes.json`);
+  console.log(`Custom emotes endpoint available at http://localhost:${PORT}/emotes.json`);
+  console.log(`FFZ emotes proxy available at http://localhost:${PORT}/api/ffz/emoticons`);
+  console.log(`Popular FFZ emotes available at http://localhost:${PORT}/api/ffz/popular`);
 });
