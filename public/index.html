@@ -122,7 +122,6 @@
                     <div class="emote-tabs">
                         <button class="emote-tab active" data-tab="emoji">😀 Emoji</button>
                         <button class="emote-tab" data-tab="ffz">🐸 FFZ</button>
-                        <button class="emote-tab" data-tab="custom">🎮 Custom</button>
                     </div>
                     <div class="emote-content">
                         <div id="emojiGrid" class="emote-grid"></div>
@@ -135,7 +134,6 @@
                             <div id="ffzEmoteGrid" class="emote-grid"></div>
                             <button id="ffzLoadMore" class="ffz-load-more" style="display: none;">Load More</button>
                         </div>
-                        <div id="customGrid" class="emote-grid" style="display: none;"></div>
                     </div>
                 </div>
             </form>
@@ -164,7 +162,6 @@
         var emoteBtn = document.getElementById('emoteBtn');
         var emotePicker = document.getElementById('emotePicker');
         var emoteGrid = document.getElementById('emojiGrid');
-        var customGrid = document.getElementById('customGrid');
         var ffzGrid = document.getElementById('ffzGrid');
         var ffzEmoteGrid = document.getElementById('ffzEmoteGrid');
         var ffzSearch = document.getElementById('ffzSearch');
@@ -175,12 +172,10 @@
         var cancelReply = document.getElementById('cancelReply');
         
         // Emote storage
-        var customEmotes = {};
         var ffzEmotes = {};
         var ffzPage = 1;
         var ffzSearchTerm = '';
         var ffzLoading = false;
-        var emotesLoaded = false;
         
         // Popular FFZ emotes (fallback if API isn't available)
         var popularFFZEmotes = {
@@ -374,65 +369,6 @@
             });
         }
 
-        // Load custom emotes from your existing API
-        async function loadCustomEmotes() {
-            try {
-                console.log('Loading custom emotes from local API...');
-                const response = await fetch('/emotes.json');
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const emotesData = await response.json();
-                console.log('Custom emotes loaded:', emotesData.length);
-                
-                customEmotes = {};
-                emotesData.forEach(emote => {
-                    if (emote.Name && emote.ImageUrl) {
-                        customEmotes[emote.Name] = emote.ImageUrl;
-                    }
-                });
-                
-                console.log('Processed custom emotes:', Object.keys(customEmotes).length);
-                emotesLoaded = true;
-                
-                if (customGrid) {
-                    initializeCustomEmotes();
-                }
-                
-            } catch (error) {
-                console.error('Failed to load custom emotes:', error);
-                showError('Failed to load custom emotes from server');
-                emotesLoaded = true;
-            }
-        }
-
-        function initializeCustomEmotes() {
-            customGrid.innerHTML = '';
-            
-            if (!emotesLoaded) {
-                customGrid.innerHTML = '<div class="loading">Loading custom emotes...</div>';
-                return;
-            }
-            
-            if (Object.keys(customEmotes).length === 0) {
-                customGrid.innerHTML = '<div class="loading">No custom emotes available</div>';
-                return;
-            }
-            
-            Object.keys(customEmotes).forEach(emoteName => {
-                const emoteElement = document.createElement('button');
-                emoteElement.className = 'emote-item';
-                emoteElement.innerHTML = `<img src="${customEmotes[emoteName]}" alt="${emoteName}" title="${emoteName}" onerror="this.style.display='none'">`;
-                emoteElement.addEventListener('click', () => {
-                    insertEmote(`:${emoteName}:`);
-                    // Don't hide picker - let user select multiple emotes
-                });
-                customGrid.appendChild(emoteElement);
-            });
-        }
-        
         function initializeFromURL() {
             const urlParams = new URLSearchParams(window.location.search);
             currentChannel = urlParams.get('channel') || urlParams.get('stream') || 'general';
@@ -473,10 +409,6 @@
             // Initialize FFZ emotes
             loadFFZEmotes();
             
-            // Initialize custom emotes
-            initializeCustomEmotes();
-            loadCustomEmotes();
-            
             // FFZ search functionality
             let searchTimeout;
             ffzSearch.addEventListener('input', (e) => {
@@ -508,7 +440,6 @@
             });
             document.getElementById('emojiGrid').style.display = tabName === 'emoji' ? 'grid' : 'none';
             document.getElementById('ffzGrid').style.display = tabName === 'ffz' ? 'block' : 'none';
-            document.getElementById('customGrid').style.display = tabName === 'custom' ? 'grid' : 'none';
             
             // Focus search when FFZ tab is opened
             if (tabName === 'ffz') {
@@ -603,16 +534,6 @@
                 const regex = new RegExp(`\\b${escapeRegex(emoteName)}\\b`, 'g');
                 processedText = processedText.replace(regex, 
                     `<img src="${allFFZEmotes[emoteName]}" alt="${emoteName}" class="ffz-emote-inline" title="${emoteName}">`
-                );
-            });
-
-            // Process custom emotes
-            Object.keys(customEmotes).forEach(emoteName => {
-                const regex = new RegExp(escapeRegex(`:${emoteName}:`), 'g');
-                const isAnimated = customEmotes[emoteName].includes('.gif');
-                const className = isAnimated ? 'gif-emote' : 'custom-emote';
-                processedText = processedText.replace(regex, 
-                    `<img src="${customEmotes[emoteName]}" alt="${emoteName}" class="${className}" title="${emoteName}">`
                 );
             });
             
