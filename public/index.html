@@ -92,6 +92,30 @@
         .ffz-header { padding: 4px 8px; background: #0a0a0a; border-bottom: 1px solid #2c2c2c; font-size: 10px; color: #8a8a8a; display: flex; justify-content: space-between; align-items: center; }
         .ffz-load-more { background: #2c2c2c; color: #e5e5e5; padding: 4px 8px; border: none; border-radius: 3px; cursor: pointer; font-size: 10px; margin-top: 8px; }
         .ffz-load-more:hover { background: #3c3c3c; }
+        
+        /* Emote picker header with close behavior toggle */
+        .emote-picker-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 8px; 
+            background: #0a0a0a; 
+            border-bottom: 1px solid #2c2c2c; 
+        }
+        .close-behavior-toggle { 
+            display: flex; 
+            align-items: center; 
+            gap: 6px; 
+            font-size: 11px; 
+            color: #8a8a8a; 
+        }
+        .close-behavior-toggle input { 
+            cursor: pointer; 
+        }
+        .close-behavior-toggle label { 
+            cursor: pointer; 
+            user-select: none; 
+        }
     </style>
 </head>
 <body>
@@ -119,10 +143,16 @@
                     <button type="submit" class="send-btn">Send</button>
                 </div>
                 <div id="emotePicker" class="emote-picker">
-                    <div class="emote-tabs">
-                        <button class="emote-tab active" data-tab="emoji">😀 Emoji</button>
-                        <button class="emote-tab" data-tab="ffz">🐸 FFZ</button>
-                        <button class="emote-tab" data-tab="custom">🎮 Custom</button>
+                    <div class="emote-picker-header">
+                        <div class="emote-tabs">
+                            <button class="emote-tab active" data-tab="emoji">😀 Emoji</button>
+                            <button class="emote-tab" data-tab="ffz">🐸 FFZ</button>
+                            <button class="emote-tab" data-tab="custom">🎮 Custom</button>
+                        </div>
+                        <div class="close-behavior-toggle">
+                            <input type="checkbox" id="keepOpenToggle">
+                            <label for="keepOpenToggle">Keep open</label>
+                        </div>
                     </div>
                     <div class="emote-content">
                         <div id="emojiGrid" class="emote-grid"></div>
@@ -148,6 +178,7 @@
         var typingTimer = null;
         var currentReply = null;
         var userColors = {};
+        var keepEmotePickerOpen = false;
         
         // DOM elements
         var channelName = document.getElementById('channelName');
@@ -173,6 +204,7 @@
         var replyPreview = document.getElementById('replyPreview');
         var replyContent = document.getElementById('replyContent');
         var cancelReply = document.getElementById('cancelReply');
+        var keepOpenToggle = document.getElementById('keepOpenToggle');
         
         // Emote storage
         var customEmotes = {};
@@ -235,6 +267,16 @@
             'user-blue', 'user-purple', 'user-pink', 'user-cyan',
             'user-lime', 'user-indigo', 'user-teal', 'user-amber'
         ];
+        
+        // Keep open toggle handler
+        keepOpenToggle.addEventListener('change', (e) => {
+            keepEmotePickerOpen = e.target.checked;
+            localStorage.setItem('keepEmotePickerOpen', keepEmotePickerOpen);
+        });
+        
+        // Load saved preference
+        keepEmotePickerOpen = localStorage.getItem('keepEmotePickerOpen') === 'true';
+        keepOpenToggle.checked = keepEmotePickerOpen;
         
         function generateRandomUsername() {
             const adjectives = ['Happy', 'Cool', 'Swift', 'Bright', 'Silent', 'Bold'];
@@ -367,8 +409,10 @@
                 
                 emoteElement.appendChild(img);
                 emoteElement.addEventListener('click', () => {
-                    insertEmoji(name);
-                    hideEmotePicker();
+                    insertEmote(name);
+                    if (!keepEmotePickerOpen) {
+                        hideEmotePicker();
+                    }
                 });
                 ffzEmoteGrid.appendChild(emoteElement);
             });
@@ -426,8 +470,10 @@
                 emoteElement.className = 'emote-item';
                 emoteElement.innerHTML = `<img src="${customEmotes[emoteName]}" alt="${emoteName}" title="${emoteName}" onerror="this.style.display='none'">`;
                 emoteElement.addEventListener('click', () => {
-                    insertEmoji(`:${emoteName}:`);
-                    hideEmotePicker();
+                    insertEmote(`:${emoteName}:`);
+                    if (!keepEmotePickerOpen) {
+                        hideEmotePicker();
+                    }
                 });
                 customGrid.appendChild(emoteElement);
             });
@@ -464,8 +510,10 @@
                 emoteElement.innerHTML = twemoji.parse(emoji);
                 emoteElement.dataset.emoji = emoji;
                 emoteElement.addEventListener('click', () => {
-                    insertEmoji(emoji);
-                    hideEmotePicker();
+                    insertEmote(emoji);
+                    if (!keepEmotePickerOpen) {
+                        hideEmotePicker();
+                    }
                 });
                 emoteGrid.appendChild(emoteElement);
             });
@@ -516,14 +564,19 @@
             }
         }
         
-        function insertEmoji(emoji) {
+        function insertEmote(emote) {
             const cursorPos = messageInput.selectionStart;
             const textBefore = messageInput.value.substring(0, cursorPos);
             const textAfter = messageInput.value.substring(cursorPos);
             
-            messageInput.value = textBefore + emoji + " " + textAfter;
+            // Add space before emote if needed (not at beginning and no space before)
+            const spaceBefore = (textBefore.length > 0 && !textBefore.endsWith(' ')) ? ' ' : '';
+            // Always add space after emote
+            const spaceAfter = ' ';
+            
+            messageInput.value = textBefore + spaceBefore + emote + spaceAfter + textAfter;
             messageInput.focus();
-            const newCursorPos = cursorPos + emoji.length + 1;
+            const newCursorPos = cursorPos + spaceBefore.length + emote.length + spaceAfter.length;
             messageInput.setSelectionRange(newCursorPos, newCursorPos);
         }
         
@@ -621,7 +674,7 @@
         cancelReply.addEventListener('click', cancelReplyFunc);
         
         document.addEventListener('click', (e) => {
-            if (!emotePicker.contains(e.target) && e.target !== emoteBtn) {
+            if (!emotePicker.contains(e.target) && e.target !== emoteBtn && !keepEmotePickerOpen) {
                 hideEmotePicker();
             }
         });
